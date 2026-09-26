@@ -1,129 +1,398 @@
-# HireFlow
+# Hireflow
 
-**A multi-tenant Applicant Tracking System built as a production-grade MERN reference
-implementation — and as a structured learning project in full-stack engineering.**
+> A production-oriented MERN recruitment platform built phase-by-phase
+> as a learning and portfolio project.
 
-> **Project status: Phase 0 (Product & Architecture) — complete.**
-> No application code exists yet, by design. The entire design is documented and
-> defensible before a line is written.
+## Project Goal
 
----
+Hireflow is designed to demonstrate that a fresher can build,
+understand, test, and deploy a realistic full-stack application.
 
-## What this is
+The goal is not simply to produce a large codebase with AI.
 
-HireFlow is a web-based ATS. A company creates an **organization**, invites a team, posts
-**jobs**, and runs candidates through an explicit hiring **pipeline**:
+The goal is to understand the engineering decisions behind the code and
+be able to explain them in interviews.
 
+## Core Stack
+
+### Frontend
+
+-   React
+-   React Router
+-   JavaScript/TypeScript --- decision finalized during architecture
+    phase
+
+### Backend
+
+-   Node.js
+-   Express.js
+
+### Database
+
+-   MongoDB
+-   Mongoose
+
+### Development
+
+-   Git
+-   GitHub
+-   OpenCode as the primary coding agent
+-   ChatGPT as architecture/learning mentor
+-   Gemini CLI as an optional second opinion/reviewer
+
+### Deployment
+
+The project will use appropriate free-tier services where practical.
+
+------------------------------------------------------------------------
+
+# Development Philosophy
+
+Hireflow will be developed incrementally.
+
+We will follow:
+
+``` text
+Understand
+    ↓
+Design
+    ↓
+Implement
+    ↓
+Test
+    ↓
+Review
+    ↓
+Explain
+    ↓
+Commit
 ```
-create job → publish → candidate applies → screening → shortlisted
-→ interview scheduled → feedback submitted → offer / rejection → hired
+
+The coding agent must not build the entire application in one pass.
+
+The developer controls the phases.
+
+OpenCode implements tasks within the current phase.
+
+------------------------------------------------------------------------
+
+# Planned Phases
+
+## Phase 0 --- Product Requirements
+
+Define:
+
+-   problem statement
+-   target users
+-   user roles
+-   core workflows
+-   functional requirements
+-   non-functional requirements
+-   MVP scope
+-   future scope
+
+## Phase 1 --- Architecture
+
+Define:
+
+-   technology choices
+-   system architecture
+-   frontend/backend boundaries
+-   database strategy
+-   authentication strategy
+-   API conventions
+-   folder structure
+-   development workflow
+
+## Phase 2 --- Project Setup
+
+Set up:
+
+-   repository
+-   frontend
+-   backend
+-   development scripts
+-   environment variables
+-   linting
+-   formatting
+-   initial Git workflow
+
+## Phase 3 --- Database Design
+
+Design:
+
+-   users
+-   candidate profiles
+-   recruiter profiles
+-   companies
+-   jobs
+-   applications
+
+Add indexes and constraints where justified.
+
+## Phase 4 --- Authentication & Authorization
+
+Implement:
+
+-   registration
+-   login
+-   password hashing
+-   authentication
+-   protected routes
+-   roles
+-   authorization
+-   logout/session strategy
+
+## Phase 5 --- Candidate Module
+
+Implement candidate profile and related workflows.
+
+## Phase 6 --- Recruiter Module
+
+Implement recruiter/company workflows.
+
+## Phase 7 --- Job Management
+
+Implement:
+
+-   job creation
+-   editing
+-   publishing
+-   closing
+-   job details
+-   recruiter ownership
+
+## Phase 8 --- Applications
+
+Implement:
+
+-   applying for jobs
+-   application status
+-   recruiter application management
+-   candidate application tracking
+
+## Phase 9 --- Search & Filtering
+
+Implement useful:
+
+-   search
+-   filters
+-   sorting
+-   pagination
+
+## Phase 10 --- Dashboards
+
+Build candidate and recruiter dashboards.
+
+## Phase 11 --- Notifications
+
+Introduce notifications where they provide real product value.
+
+## Phase 12 --- Testing
+
+Expand:
+
+-   unit tests
+-   integration tests
+-   API tests
+-   critical frontend tests
+
+## Phase 13 --- Security & Performance
+
+Review:
+
+-   authentication
+-   authorization
+-   validation
+-   headers
+-   CORS
+-   rate limiting
+-   database queries
+-   indexes
+-   API payloads
+-   frontend performance
+
+## Phase 14 --- Docker
+
+Containerize the application where useful.
+
+## Phase 15 --- CI/CD
+
+Set up automated:
+
+-   linting
+-   tests
+-   builds
+-   deployment workflow
+
+## Phase 16 --- Deployment
+
+Deploy the frontend, backend, and database using appropriate free-tier
+services.
+
+## Phase 17 --- Documentation & Portfolio
+
+Improve:
+
+-   README
+-   architecture documentation
+-   API documentation
+-   screenshots
+-   live demo
+-   GitHub repository presentation
+
+## Phase 18 --- Interview Preparation
+
+Prepare:
+
+-   project explanation
+-   architecture explanation
+-   database questions
+-   API questions
+-   authentication questions
+-   security questions
+-   deployment questions
+-   system-design extensions
+-   likely interviewer follow-ups
+
+------------------------------------------------------------------------
+
+# AI Development Workflow
+
+## ChatGPT
+
+Use ChatGPT for:
+
+-   architecture discussions
+-   learning concepts
+-   comparing approaches
+-   reviewing decisions
+-   debugging explanations
+-   interview preparation
+-   planning each phase
+
+## OpenCode
+
+Use OpenCode for:
+
+-   inspecting the repository
+-   implementing agreed features
+-   writing tests
+-   running tests
+-   debugging
+-   refactoring
+-   documentation updates
+-   Git-aware development
+
+OpenCode must follow `AGENTS.md`.
+
+## Gemini CLI
+
+Use optionally for:
+
+-   second-opinion reviews
+-   security reviews
+-   alternative approaches
+-   difficult debugging
+
+------------------------------------------------------------------------
+
+# Important Rule
+
+AI is an engineering assistant.
+
+The developer must understand the important parts of the implementation.
+
+We do not move to the next phase simply because the agent says a phase
+is complete.
+
+------------------------------------------------------------------------
+
+# Repository Rules
+
+Never commit:
+
+``` text
+.env
+.env.*
+node_modules/
+dist/
+build/
+coverage/
 ```
 
-Companies are **tenants**: two organizations can never see each other's jobs, candidates,
-resumes or applications — enforced on the server, not by hiding buttons.
+except for intentionally tracked example environment files such as:
 
-The project is being built in 16 explicit phases. Each phase ends with a gate: working
-feature, edge cases considered, tests, updated docs, and a verified run. Phases never
-advance automatically.
+``` text
+.env.example
+```
 
-## Tech stack (as chosen, with reasons in the docs)
+Never commit real secrets.
 
-| Layer | Choice |
+------------------------------------------------------------------------
+
+# Documentation
+
+| Document | What it covers |
 | --- | --- |
-| Frontend | React 19 · TypeScript (strict) · Vite · React Router · TanStack Query · Zustand · Tailwind CSS |
-| Backend | Node.js · Express 5 · TypeScript (strict) · Zod |
-| Database | MongoDB · Mongoose |
-| Auth | Access token in memory (15 min) + rotating refresh token in an httpOnly cookie · argon2id |
-| Files | S3-compatible object storage (private bucket, signed URLs, magic-byte validation) |
-| Email | Resend in production, Nodemailer/Ethereal in development (async, Phase 9) |
-| Testing | Jest + Supertest + `mongodb-memory-server` (backend) · Vitest + React Testing Library (frontend) |
-| DevOps | Docker · Docker Compose · GitHub Actions (Phase 13) |
-| Real-time | Socket.IO, emit-after-commit, REST stays authoritative (Phase 9) |
-| Deferred | Redis/BullMQ (only when volume demands) · AI resume matching behind a port interface (Phase 11) |
+| [Product Requirements](docs/product-requirements.md) | The Phase 0 product definition: problem statement, personas, user journeys, MVP / V1 / future scope, functional and non-functional requirements, risks, open questions and the Phase 0 decision log. |
+| [AGENTS.md](AGENTS.md) | The development rules the coding agent must follow. |
 
-## Repository layout
+------------------------------------------------------------------------
 
-```
-HireFlow/
+# Suggested Repository Structure
+
+``` text
+hireflow/
+├── frontend/
+├── backend/
 ├── docs/
-│   └── phase-0/        ← start here
-│       ├── 01-product-and-requirements.md      product, personas, stories, FR/NFR, priorities
-│       ├── 02-domain-model.md                  entities, embedding vs referencing, indexes, concurrency, scale
-│       ├── 03-system-architecture.md           request lifecycle, layering, auth, RBAC, frontend, folders
-│       ├── 04-api-design-strategy.md           conventions, envelope, errors, pagination, endpoint surface
-│       ├── 05-decisions-and-tradeoffs.md       ADRs with alternatives, risks, roadmap, known limitations
-│       └── 06-concepts-and-interview-questions.md  the Phase 0 gate + full interview bank
-├── server/             (Phase 1)
-├── client/             (Phase 1)
-└── README.md
+├── AGENTS.md
+├── README.md
+├── .gitignore
+└── .env.example
 ```
 
-## Documentation index
+The exact structure may evolve after Phase 1 architecture decisions.
 
-| Document | What it answers |
-| --- | --- |
-| [01 Product & Requirements](docs/phase-0/01-product-and-requirements.md) | What are we building, for whom, and how do we know it is done? |
-| [02 Domain Model](docs/phase-0/02-domain-model.md) | What are the entities, how do they relate, and why is the schema shaped this way? |
-| [03 System Architecture](docs/phase-0/03-system-architecture.md) | How does a request actually flow? Where does auth happen? How are permissions enforced? |
-| [04 API Design Strategy](docs/phase-0/04-api-design-strategy.md) | What do the URLs, response envelope, error codes and pagination look like? |
-| [05 Decisions & Trade-offs](docs/phase-0/05-decisions-and-tradeoffs.md) | Why this stack and not the alternative? What are the risks and known gaps? |
-| [06 Concepts & Interview Questions](docs/phase-0/06-concepts-and-interview-questions.md) | What must I understand before writing code? What will I be asked? |
+------------------------------------------------------------------------
 
-## Roadmap
+# Current Status
 
-| Phase | Theme |
-| --- | --- |
-| 0 | Product & architecture ✅ |
-| 1 | Project setup, env config, Mongo connection, health endpoints, tooling |
-| 2 | Authentication (register / login / refresh / logout, protected routes) |
-| 3 | Organizations & RBAC (multi-tenancy, roles, authorization) |
-| 4 | Job management (CRUD as a real business workflow) |
-| 5 | Candidate profiles, resume upload, applications |
-| 6 | Hiring pipeline (state machine, Kanban, stage history, audit) |
-| 7 | Interview management (scheduling, assignment, feedback) |
-| 8 | Search, filtering & pagination (index-backed) |
-| 9 | Notifications, real-time & email |
-| 10 | Analytics (aggregation pipelines + dashboard) |
-| 11 | AI resume assistant (assistive, explainable, behind an interface) |
-| 12 | Testing & security hardening |
-| 13 | Docker & CI/CD |
-| 14 | Deployment |
-| 15 | Interview preparation |
+Phase: **0 --- Product Requirements**
 
-Full phase-by-phase detail, including the **gate that must pass before each phase
-starts**, is in
-[05-decisions-and-tradeoffs.md §8](docs/phase-0/05-decisions-and-tradeoffs.md).
+Status: **Complete --- pending developer review**
 
-## The five ideas this project is built to teach
+No application code exists yet, by design. Nothing has been installed, and
+frontend/backend source directories do not exist yet.
 
-1. **Candidate ≠ Application.** The many-to-many *is* the entity. Stage, interviews and
-   feedback hang off the application, not the person.
-2. **Authorization is server-side, two-layered, and query-scoped.** Role → permission map
-   *plus* ownership predicates, with the tenant filter inside the database query.
-3. **Authentication is a token-storage problem, not a password problem.** Short-lived
-   in-memory access token, rotated httpOnly refresh token, reuse detection.
-4. **Invariants belong in the database.** Unique indexes for "apply once", "one feedback
-   per interviewer", "no duplicate candidate per tenant".
-5. **Design that makes the mistake impossible beats a review checklist that catches it.**
-   Tenant scope, validation and pagination belong in the middleware pipeline.
+Delivered in Phase 0:
 
-## Current status
+- [Product Requirements](docs/product-requirements.md) --- product overview,
+  problem statement, goals, non-goals, two personas, the candidate and recruiter
+  journeys, MVP / V1 / future scope, 71 MVP + 20 V1 + 13 future functional
+  requirements, 70 non-functional requirements, 14 risks, 20 open questions,
+  7 design constraints for Phase 1, and the Phase 0 decision log (8 recorded
+  decisions).
 
-- [x] Product overview, problem statement, personas, user stories
-- [x] Functional requirements (FR) and non-functional requirements (NFR) with measurable targets
-- [x] Feature prioritisation mapped to phases
-- [x] Domain model: 10 entities, field-level design, cardinality
-- [x] Embedding vs referencing framework, applied and justified
-- [x] Index strategy, compound-order reasoning, pagination strategy, N+1 rule
-- [x] Concurrency strategy: unique indexes, transactions, optimistic concurrency
-- [x] High-level architecture, backend layering, frontend architecture
-- [x] Authentication and authorization architecture
-- [x] API design strategy, error catalogue, endpoint surface per module
-- [x] Decision records with alternatives and revisit conditions
-- [x] Risk register, anti-patterns, known limitations
-- [x] 16-phase roadmap with entry/exit gates
-- [ ] Application code — begins in Phase 1
+Key Phase 0 decisions (details and rationale in the requirements document):
 
-**Next step: verify the Phase 0 gate in
-[06-concepts-and-interview-questions.md Part A](docs/phase-0/06-concepts-and-interview-questions.md),
-then say "Start Phase 1."**
+- Two roles only: **Candidate** and **Recruiter**. An Admin role is future
+  scope, and the authorization model must allow one to be added later without a
+  redesign.
+- Résumé upload is in the MVP: one current PDF per candidate, stored in
+  external object storage with only a reference and metadata in the database.
+- Application status is a controlled set of eight values --- `APPLIED`,
+  `UNDER_REVIEW`, `SHORTLISTED`, `INTERVIEW`, `OFFERED`, `HIRED`, `REJECTED`,
+  `WITHDRAWN` --- with append-only status history recording status, `changedAt`
+  and `changedBy`.
+- A recruiter belongs to exactly one company; a recruiter may only manage the
+  jobs and applications of their own company.
+- No search engine, filtering, pagination UX or notifications in the MVP;
+  those are V1.
+
+Next objective:
+
+Answer the five blocking open questions (`OQ-001`, `OQ-002`, `OQ-003`,
+`OQ-004`, `OQ-005`), then start **Phase 1 --- Architecture** on explicit
+instruction. Phase 1 has not been started.
