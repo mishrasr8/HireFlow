@@ -1,0 +1,22 @@
+node_modules/
+dist/
+build/
+coverage/
+package-lock.json
+*.tsbuildinfo
+
+# Real secrets live here. They are never formatted and never committed.
+.env
+.env.local
+.env.*.local
+
+# Phase 0 documents are hand-authored and left in their existing formatting.
+#
+# Reformatting them would produce a large diff in files this phase does not own,
+# and would realign the carefully laid out requirement tables for no benefit.
+# They are excluded so that a Phase 1 commit contains only Phase 1 changes.
+# If they are ever reformatted, that should be a deliberate, separate commit.
+AGENTS.md
+README.md
+PHASE-0-PROMPT.md
+docs/product-requirements.md

@@ -15,23 +15,42 @@ be able to explain them in interviews.
 
 ## Core Stack
 
+Language and framework choices were decided in Phase 0 (`D-012`: TypeScript).
+Exact versions, tooling and the module system were Phase 1 decisions and are
+recorded in [docs/architecture.md](docs/architecture.md).
+
 ### Frontend
 
--   React
--   React Router
--   TypeScript --- decided in Phase 0 (`D-012`); strictness, build tooling and
-    module system are Phase 1 decisions
+-   React --- with React Router for navigation and TanStack Query for server
+    state. No global client state library: there is no client-only state to
+    hold yet.
+-   TypeScript --- decided in Phase 0 (`D-012`)
 
 ### Backend
 
--   Node.js
+-   Node.js (>= 24)
 -   Express.js
 -   TypeScript --- decided in Phase 0 (`D-012`)
+-   Mongoose for MongoDB access; Zod for runtime validation at every trust
+    boundary
+
+### Shared
+
+-   `packages/contracts` --- TypeScript types and Zod schemas shared by both
+    applications, so a change to the API contract breaks compilation on both
+    sides.
 
 ### Database
 
 -   MongoDB
 -   Mongoose
+
+### Tooling
+
+-   npm workspaces (one lockfile)
+-   TypeScript in strict mode, ESLint 10 flat config with type-aware rules,
+    Prettier
+-   Vitest, Supertest, Testing Library
 
 ### Development
 
@@ -92,20 +111,34 @@ Define:
 -   MVP scope
 -   future scope
 
-## Phase 1 --- Architecture
+## Phase 1 --- Engineering Foundation
 
-Define:
+**Status: complete.** Phase 0 called this "Architecture" and Phase 2 "Project
+Setup". Phase 1 covers both --- the architecture decisions are not useful
+without a running project to demonstrate them, and a scaffold with no
+architecture decisions is just directories. This is a deliberate change to the
+Phase 0 plan, recorded here rather than applied silently.
 
--   technology choices
--   system architecture
--   frontend/backend boundaries
--   database strategy
--   authentication strategy
--   API conventions
--   folder structure
--   development workflow
+Decide and build:
 
-## Phase 2 --- Project Setup
+-   technology choices and versions
+-   monorepo structure and dependency direction
+-   TypeScript strictness and module system
+-   shared API contract between frontend and backend
+-   API conventions: envelope, error codes, status codes
+-   centralized error handling
+-   CORS and security headers
+-   database connection lifecycle and graceful shutdown
+-   environment variable strategy
+-   linting, formatting, and testing
+-   `GET /api/health`, consumed by the web app
+-   development and verification commands
+
+Deliberately **not** built: users, organizations, roles, jobs, candidates,
+applications, interviews, feedback, notifications, email, résumé upload, AI,
+websockets, queues, analytics, payments.
+
+## Phase 2 --- Project Setup (merged into Phase 1)
 
 Set up:
 
@@ -117,6 +150,10 @@ Set up:
 -   linting
 -   formatting
 -   initial Git workflow
+
+All of the above were completed as part of Phase 1, so this phase no longer
+exists as a separate step. The remaining phase numbers are unchanged from the
+Phase 0 plan.
 
 ## Phase 3 --- Database Design
 
@@ -337,46 +374,203 @@ Never commit real secrets.
 | Document | What it covers |
 | --- | --- |
 | [Product Requirements](docs/product-requirements.md) | The Phase 0 product definition: problem statement, personas, user journeys, MVP / V1 / future scope, functional and non-functional requirements, risks, open questions and the Phase 0 decision log. |
+| [Architecture](docs/architecture.md) | The Phase 1 engineering foundation: structure, dependency direction, TypeScript configuration, the API contract, request flow, environment strategy, testing approach, and the reasoning behind each decision. |
 | [AGENTS.md](AGENTS.md) | The development rules the coding agent must follow. |
 
 ------------------------------------------------------------------------
 
-# Suggested Repository Structure
+# Repository Structure
 
 ``` text
 hireflow/
-├── frontend/
-├── backend/
+├── apps/
+│   ├── api/                     Express + Mongoose REST API
+│   └── web/                     React single-page application
+├── packages/
+│   └── contracts/               Shared API contract: TypeScript types + Zod schemas
 ├── docs/
-├── AGENTS.md
-├── README.md
-├── .gitignore
-└── .env.example
+│   ├── product-requirements.md
+│   └── architecture.md
+├── .env.example                 Committed. Never contains a secret.
+├── eslint.config.js             One type-aware flat config for the monorepo
+├── tsconfig.base.json           Shared TypeScript strictness
+├── package.json                 npm workspaces root
+└── package-lock.json            The only lockfile
 ```
 
-The exact structure may evolve after Phase 1 architecture decisions.
+Phase 0 proposed `frontend/` + `backend/`. Phase 1 needed a third workspace,
+`contracts`, that both applications depend on, so the structure became
+`apps/*` + `packages/*` --- the convention npm workspaces uses. The Phase 0
+plan explicitly permitted this: "The exact structure may evolve after Phase 1
+architecture decisions."
+
+Full reasoning is in [docs/architecture.md](docs/architecture.md).
+
+------------------------------------------------------------------------
+
+# Getting Started
+
+## Requirements
+
+-   **Node.js >= 24.0.0** --- check with `node --version`
+-   **npm** --- ships with Node, and is the only package manager this project
+    uses. There is one lockfile, `package-lock.json`.
+-   **MongoDB** --- running locally, or a reachable `MONGODB_URI`. The API fails
+    to start with a clear message if it cannot connect; that is intentional.
+
+## Setup
+
+``` bash
+npm install
+cp .env.example .env
+```
+
+Edit `.env` if your database is not at the default address. Then:
+
+``` bash
+npm run dev
+```
+
+This starts three processes:
+
+| Process           | What it does                                    |
+| ----------------- | ----------------------------------------------- |
+| `@hireflow/contracts` | Watches the shared contract and rebuilds it |
+| `@hireflow/api`   | Express API on <http://localhost:4000>          |
+| `@hireflow/web`   | Vite dev server on <http://localhost:5173>      |
+
+Open <http://localhost:5173>. The page calls `GET /api/health` and shows the
+live result --- service name, status, database state and uptime.
+
+If the API cannot reach MongoDB it exits with an explanatory message instead of
+starting in a broken state.
+
+## Environment Variables
+
+There is **one** `.env` and **one** `.env.example`, both at the repository root.
+
+``` text
+NODE_ENV            "development" | "production"
+PORT                TCP port for the API (default 4000)
+MONGODB_URI         MongoDB connection string
+CORS_ORIGINS        Comma-separated browser origins allowed to call the API
+VITE_API_BASE_URL   Base URL the browser uses to reach the API
+```
+
+That is the complete list. Every variable is used by running code today; there
+are no placeholders for features that do not exist yet.
+
+### `.env.example` versus `.env`
+
+|                              | `.env.example`      | `.env`             | Production secret |
+| ---------------------------- | ------------------- | ------------------ | ----------------- |
+| Committed to Git?            | **Yes**             | **No**             | **Never**         |
+| Contains real values?        | No                  | Yes, local only    | Yes               |
+| Contains secrets?            | Never               | Not in Phase 1     | Yes               |
+| What it is                   | Documentation       | Machine state      | Runtime injection |
+
+`.env.example` is committed documentation of *which* variables exist.
+`.env` is uncommitted machine state that makes this computer work. A production
+secret is neither: it is injected at deploy time from a hosting platform's
+secret store, so it is never in the repository at all.
+
+Phase 1 has no secrets. `MONGODB_URI` becomes one as soon as a hosted database
+with credentials is used --- which is why `.env.example` warns about that today.
+
+The `VITE_` prefix is deliberate: Vite only exposes prefixed variables to
+browser code. A future `SESSION_SECRET` can safely sit in the same file without
+ever reaching the client bundle.
+
+## Commands
+
+| Command                          | What it does |
+| -------------------------------- | ------------ |
+| `npm run dev`                    | All three workspaces together |
+| `npm run dev:api`                | API only, with reload |
+| `npm run dev:web`                | Web only |
+| `npm run verify`                 | **typecheck → lint → format:check → test → build** |
+| `npm test`                       | All tests in all workspaces |
+| `npm run typecheck`              | All workspaces, in dependency order |
+| `npm run lint` / `lint:fix`      | Type-aware ESLint across the monorepo |
+| `npm run format` / `format:check`| Prettier |
+| `npm run build`                  | contracts → api → web |
+| `npm run start -w @hireflow/api` | Run the compiled API |
+
+`npm run verify` is the command that must pass before any commit. It runs the
+checks in the order where a failure is cheapest to diagnose.
+
+## Testing
+
+55 tests, none of which needs a running service.
+
+| Workspace            | Tests | Coverage focus |
+| -------------------- | ----- | -------------- |
+| `packages/contracts` | 8     | Envelope shape, error-code/schema coupling, health payload parsing |
+| `apps/api`           | 37    | Health endpoint, 404s, malformed bodies, CORS, security headers, cache policy, environment-uniform 500s, env validation, real socket drain |
+| `apps/web`           | 10    | Loading, success, degraded, network failure, contract violation, 404 page |
+
+The API tests drive the real Express app in-process with Supertest --- no mocked
+framework, no mocked response objects --- and validate the results using the
+shared contract, so a test fails if the API and the contract ever disagree.
+
+Run one workspace:
+
+``` bash
+npm test -w @hireflow/api
+npm test -w @hireflow/web
+npm test -w @hireflow/contracts
+```
 
 ------------------------------------------------------------------------
 
 # Current Status
 
-Phase: **0 --- Product Requirements**
+Phase: **1 --- Engineering Foundation**
 
 Status: **Complete --- pending developer review**
 
-No application code exists yet, by design. Nothing has been installed, and
-frontend/backend source directories do not exist yet.
+The application runs. `npm install && npm run dev` starts the API on port 4000
+and the web app on port 5173, and the web app displays the live result of
+`GET /api/health`.
 
-Delivered in Phase 0:
+Delivered in Phase 1:
 
-- [Product Requirements](docs/product-requirements.md) --- product overview,
-  problem statement, goals, non-goals, two personas, the candidate and recruiter
-  journeys, MVP / V1 / future scope, 87 MVP + 20 V1 + 13 future functional
-  requirements, 73 non-functional requirements, 25 risks, 25 open questions
-  (21 open, 4 resolved), 10 design constraints for Phase 1, and the Phase 0
-  decision log (12 recorded decisions).
+-   npm-workspaces monorepo: `apps/api`, `apps/web`, `packages/contracts`, with
+    one lockfile and an explicit build order.
+-   TypeScript `strict` everywhere, plus `noUncheckedIndexedAccess`,
+    `noPropertyAccessFromIndexSignature`, `verbatimModuleSyntax` and
+    `isolatedModules`. No `any`; ESLint makes it an error.
+-   `@hireflow/contracts`: one success/failure envelope, a compile-time-coupled
+    error-code list, and Zod schemas shared by both applications.
+-   `GET /api/health` returning
+    `{ success: true, data: { service, status, timestamp, uptimeSeconds, database } }`.
+-   Mongoose connection at startup with a clear failure if the database is
+    unavailable, and a graceful `SIGINT`/`SIGTERM` shutdown that drains
+    connections before releasing the connection pool.
+-   Centralized error handling: 404s, `ApiError`, `ZodError`, malformed JSON,
+    and unexpected errors --- with a response that never varies by environment,
+    so it can never leak a stack trace, and
+    an `x-request-id` on every response.
+-   Deliberate CORS with an explicit allowlist and credentials, never a
+    wildcard.
+-   `Cache-Control: no-store` on every API response, so the browser's HTTP cache
+    cannot serve a stale health status.
+-   React + Vite + Tailwind + React Router + TanStack Query, rendering the live
+    health result and handling loading, success, degraded and failure states.
+-   Zod validation of the environment at startup, of every incoming API
+    response in the browser, and of the API's own responses in its tests.
+-   One root `.env` / `.env.example`, tailored `.gitignore`, ESLint, Prettier.
 
-Key Phase 0 decisions (details and rationale in the requirements document):
+Deliberately **not** built, because nothing in Phase 1 requires it: users,
+organizations, roles, jobs, candidates, applications, interviews, feedback,
+notifications, email, résumé upload, AI, websockets, queues, workers,
+analytics, payments, rate limiting, and a global client state library.
+
+Full reasoning for every decision: [docs/architecture.md](docs/architecture.md).
+
+### Phase 0 decisions that Phase 1 implements
+
+These were decided in Phase 0 and are now real code:
 
 - Two roles only: **Candidate** and **Recruiter**. An Admin role is future
   scope, and the authorization model must allow one to be added later without a
@@ -410,10 +604,38 @@ Key Phase 0 decisions (details and rationale in the requirements document):
   Crucially, **types are not a security control**: they are erased at runtime, so
   runtime validation and server-side authorization remain mandatory.
 
-Next objective:
+### Verified behaviour
 
-Answer the four blocking open questions, then start **Phase 1 --- Architecture**
-on explicit instruction. Phase 1 has not been started.
+Everything below was executed, not assumed:
+
+``` bash
+npm install      # 0 vulnerabilities, one hoisted Vite
+npm run verify   # typecheck, lint, format, 55 tests, both builds --- all pass
+```
+
+-   Dev API connected to MongoDB and served
+    `{"success":true,"data":{"service":"hireflow-api","status":"ok",...,"database":"connected"}}`.
+-   The compiled API (`node dist/server.js`) served the same payload.
+-   A **real browser** at <http://localhost:5173> made the cross-origin request
+    and rendered `Service: hireflow-api`, `Status: ok`, `Database: connected`,
+    with no console errors.
+-   CORS live: an allowed origin received
+    `access-control-allow-origin: http://localhost:5173`; a disallowed origin
+    received no CORS headers; preflight returned 204 with `allow-methods: GET`.
+-   `x-request-id` present, `x-powered-by` absent, `x-content-type-options:
+    nosniff`, HSTS off outside production.
+-   Unknown route → `404 NOT_FOUND`; malformed JSON → `400 VALIDATION_ERROR`.
+
+**Not verified:** delivery of `SIGINT`/`SIGTERM` to the process. On Windows a
+signal cannot be sent to another process --- `process.kill(pid, 'SIGINT')`
+terminates the target without running its handler, confirmed with a control
+experiment. The drain mechanics themselves are covered by tests against a real
+socket; the signal delivery needs a Linux, macOS or container check.
+
+### Next objective
+
+Answer the four remaining blocking Phase 0 questions, then start **Phase 3 ---
+Database Design** on explicit instruction. Phase 1 work is not committed.
 
 | Origin | Blocking question |
 | --- | --- |

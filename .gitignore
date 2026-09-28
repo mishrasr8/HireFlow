@@ -1,0 +1,31 @@
+# Dependencies -----------------------------------------------------------------
+node_modules/
+
+# Build output -----------------------------------------------------------------
+dist/
+build/
+*.tsbuildinfo
+
+# Environment ------------------------------------------------------------------
+# Real secrets live here and must never be committed.
+# .env.example IS committed and documents every variable.
+.env
+.env.local
+.env.*.local
+
+# Test output ------------------------------------------------------------------
+coverage/
+
+# Logs -------------------------------------------------------------------------
+logs/
+*.log
+npm-debug.log*
+
+# Editor and OS artefacts ------------------------------------------------------
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini

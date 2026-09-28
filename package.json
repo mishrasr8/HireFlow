@@ -1,0 +1,41 @@
+{
+  "name": "hireflow",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Hireflow - a production-oriented MERN recruitment platform built phase by phase.",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run build -w @hireflow/contracts && concurrently -n contracts,api,web -c magenta,cyan,green \"npm:dev:contracts\" \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:contracts": "npm run dev -w @hireflow/contracts",
+    "dev:api": "npm run dev -w @hireflow/api",
+    "dev:web": "npm run dev -w @hireflow/web",
+    "build": "npm run build -w @hireflow/contracts && npm run build -w @hireflow/api && npm run build -w @hireflow/web",
+    "typecheck": "npm run typecheck -w @hireflow/contracts && npm run typecheck -w @hireflow/api && npm run typecheck -w @hireflow/web",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run test -w @hireflow/contracts && npm run test -w @hireflow/api && npm run test -w @hireflow/web",
+    "verify": "npm run typecheck && npm run lint && npm run format:check && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.0",
+    "concurrently": "^9.0.0",
+    "eslint": "^10.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.9.0",
+    "typescript-eslint": "^8.0.0"
+  },
+  "allowScripts": {
+    "esbuild@0.28.2": true
+  }
+}

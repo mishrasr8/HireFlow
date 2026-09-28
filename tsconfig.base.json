@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Hireflow base",
+  "notes": [
+    "Shared compiler settings for every workspace. Each package extends this and",
+    "overrides only what genuinely differs (module system, emit, DOM libs).",
+    "See docs/architecture.md for what each strictness flag buys us."
+  ],
+
+  "compilerOptions": {
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "forceConsistentCasingInFileNames": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    "target": "ES2023",
+    "lib": ["ES2023"]
+  }
+}

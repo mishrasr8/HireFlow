@@ -1,0 +1,9 @@
+/*
+ * Tailwind CSS v4.
+ *
+ * The whole setup is this one import. In v4 the framework is loaded as a
+ * Vite/PostCSS plugin, so there is no `tailwind.config.js` and no
+ * `postcss.config.js` to keep in sync. Content detection is automatic, which
+ * removes an entire class of "my class did not apply" bugs.
+ */
+@import 'tailwindcss';
