@@ -19,13 +19,14 @@ be able to explain them in interviews.
 
 -   React
 -   React Router
--   JavaScript/TypeScript --- decision finalized during architecture
-    phase
+-   TypeScript --- decided in Phase 0 (`D-012`); strictness, build tooling and
+    module system are Phase 1 decisions
 
 ### Backend
 
 -   Node.js
 -   Express.js
+-   TypeScript --- decided in Phase 0 (`D-012`)
 
 ### Database
 
@@ -370,10 +371,10 @@ Delivered in Phase 0:
 
 - [Product Requirements](docs/product-requirements.md) --- product overview,
   problem statement, goals, non-goals, two personas, the candidate and recruiter
-  journeys, MVP / V1 / future scope, 71 MVP + 20 V1 + 13 future functional
-  requirements, 70 non-functional requirements, 14 risks, 20 open questions,
-  7 design constraints for Phase 1, and the Phase 0 decision log (8 recorded
-  decisions).
+  journeys, MVP / V1 / future scope, 87 MVP + 20 V1 + 13 future functional
+  requirements, 73 non-functional requirements, 25 risks, 25 open questions
+  (21 open, 4 resolved), 10 design constraints for Phase 1, and the Phase 0
+  decision log (12 recorded decisions).
 
 Key Phase 0 decisions (details and rationale in the requirements document):
 
@@ -384,15 +385,47 @@ Key Phase 0 decisions (details and rationale in the requirements document):
   external object storage with only a reference and metadata in the database.
 - Application status is a controlled set of eight values --- `APPLIED`,
   `UNDER_REVIEW`, `SHORTLISTED`, `INTERVIEW`, `OFFERED`, `HIRED`, `REJECTED`,
-  `WITHDRAWN` --- with append-only status history recording status, `changedAt`
-  and `changedBy`.
+  `WITHDRAWN` --- moving only through a **fixed transition map**: a strict
+  forward funnel with no stage skipping and no backward moves, `REJECTED`
+  reachable from every non-terminal status, `WITHDRAWN` reachable only from
+  `APPLIED` and only by the candidate, and `HIRED` / `REJECTED` / `WITHDRAWN`
+  terminal. Every successful transition appends an immutable history record of
+  previous status, new status, actor and time.
 - A recruiter belongs to exactly one company; a recruiter may only manage the
-  jobs and applications of their own company.
+  jobs and applications of their own company. Joining a company is
+  **invite-based**: the first recruiter creates it, an existing recruiter
+  invites an already-registered user, and the invitee must accept before
+  becoming a recruiter of that company. There is no self-serve join.
 - No search engine, filtering, pagination UX or notifications in the MVP;
   those are V1.
+- Authentication uses **server-side sessions**: login creates a session record on
+  the server, the client holds only an opaque session identifier, logout
+  invalidates that server-side state, and every protected request resolves the
+  session on the server. No JWT access or refresh token in the MVP. The session
+  store must be shared by all instances, never process memory, and **CSRF
+  protection is mandatory** because the browser attaches the credential
+  automatically.
+- The codebase is **TypeScript** on both frontend and backend, with shared types
+  for the API contract so a shape change breaks compilation on both sides.
+  Crucially, **types are not a security control**: they are erased at runtime, so
+  runtime validation and server-side authorization remain mandatory.
 
 Next objective:
 
-Answer the five blocking open questions (`OQ-001`, `OQ-002`, `OQ-003`,
-`OQ-004`, `OQ-005`), then start **Phase 1 --- Architecture** on explicit
-instruction. Phase 1 has not been started.
+Answer the four blocking open questions, then start **Phase 1 --- Architecture**
+on explicit instruction. Phase 1 has not been started.
+
+| Origin | Blocking question |
+| --- | --- |
+| Phase 0 | `OQ-005` --- object storage provider and file delivery |
+| Raised by invite-based joining | `OQ-021` --- can an existing candidate accept an invitation, given one role per account? |
+| Raised by invite-based joining | `OQ-022` --- invitation token mechanism and expiry |
+| Raised by invite-based joining | `OQ-023` --- how the invitee learns about the invitation, with no email and no notifications in the MVP |
+
+`OQ-001` (how a second recruiter joins a company) was **resolved** by the
+invite-based joining decision, `OQ-002` (which status transitions are legal) by
+the fixed transition map, `OQ-003` (authentication mechanism) by the choice of
+server-side sessions, and `OQ-004` (language) by the choice of TypeScript.
+Resolving `OQ-001` raised three new blocking questions; resolving `OQ-002`,
+`OQ-003` and `OQ-004` each required none, so the net count went from five, up to
+seven, back to four.
