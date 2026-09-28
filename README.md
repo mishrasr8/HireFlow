@@ -224,7 +224,10 @@ Build candidate and recruiter dashboards.
 
 ## Phase 11 --- Notifications
 
-Introduce notifications where they provide real product value.
+Introduce notifications where they provide real product value. The MVP has one
+narrow exception --- the pending-invitation list needed for invite-based company
+joining (`D-015`) --- which is a list, not a notification feed, and must not grow
+into one.
 
 ## Phase 12 --- Testing
 
@@ -568,15 +571,31 @@ analytics, payments, rate limiting, and a global client state library.
 
 Full reasoning for every decision: [docs/architecture.md](docs/architecture.md).
 
-### Phase 0 decisions that Phase 1 implements
+### Product decisions recorded so far
 
-These were decided in Phase 0 and are now real code:
+`D-001`---`D-012` were decided in Phase 0 and are now real code. `D-013`---`D-016`
+were decided **after** Phase 1, are recorded in
+[Product Requirements](docs/product-requirements.md) section 14, and are **not yet
+implemented** --- they are the input to the next phases.
 
-- Two roles only: **Candidate** and **Recruiter**. An Admin role is future
-  scope, and the authorization model must allow one to be added later without a
-  redesign.
+- Two **capabilities** only: **Candidate** and **Recruiter**. An Admin capability is
+  future scope, and the authorization model must allow one to be added later
+  without a redesign.
+- **An account may hold both capabilities** (`D-013`). A user can apply to jobs
+  and recruit for a company from one login. Accepting a company invitation adds
+  the Recruiter capability without removing the Candidate capability or any of
+  its data, and one email still means exactly one account --- never two accounts
+  to represent two capabilities.
+- **Capability is not company membership.** Holding the Recruiter capability
+  grants no access to any company. Recruiter access is scoped to membership of
+  the specific company, and authorization is decided in a fixed order:
+  authenticated → holds the required capability → member of this company → does
+  that membership permit this action. It is never a single `role === RECRUITER`
+  test.
 - Résumé upload is in the MVP: one current PDF per candidate, stored in
-  external object storage with only a reference and metadata in the database.
+  **Cloudinary** with only a reference and metadata in the database. Hireflow
+  authorizes first and then issues an authorized temporary delivery URL, so the
+  URL is never itself the authorization decision (`D-016`).
 - Application status is a controlled set of eight values --- `APPLIED`,
   `UNDER_REVIEW`, `SHORTLISTED`, `INTERVIEW`, `OFFERED`, `HIRED`, `REJECTED`,
   `WITHDRAWN` --- moving only through a **fixed transition map**: a strict
@@ -590,8 +609,18 @@ These were decided in Phase 0 and are now real code:
   **invite-based**: the first recruiter creates it, an existing recruiter
   invites an already-registered user, and the invitee must accept before
   becoming a recruiter of that company. There is no self-serve join.
+- Company invitations use **cryptographically random, single-use tokens stored
+  hashed**, not in plaintext, with a `PENDING` → `ACCEPTED` / `DECLINED` /
+  `EXPIRED` lifecycle. Expiry and the maximum number of pending invitations are
+  company-configurable, and a re-invitation after a decline or expiry creates a
+  **new** invitation rather than reviving a spent one (`D-014`).
+- Invitations are delivered **in-app**: the invitee logs in, sees the
+  invitations addressed to their own account, and accepts or declines. No email
+  provider is required for the MVP, and this is **not** a general notification
+  system (`D-015`).
 - No search engine, filtering, pagination UX or notifications in the MVP;
-  those are V1.
+  those are V1. The single exception is the pending-invitation list above, which
+  is the minimum needed to make invite-based joining usable.
 - Authentication uses **server-side sessions**: login creates a session record on
   the server, the client holds only an opaque session identifier, logout
   invalidates that server-side state, and every protected request resolves the
@@ -634,15 +663,16 @@ socket; the signal delivery needs a Linux, macOS or container check.
 
 ### Next objective
 
-Answer the four remaining blocking Phase 0 questions, then start **Phase 3 ---
-Database Design** on explicit instruction. Phase 1 work is not committed.
+Start **Phase 3 --- Database Design** on explicit instruction. Phase 1 work is
+not committed. All Phase 0 blocking questions are now **resolved**; there are
+none outstanding.
 
-| Origin | Blocking question |
-| --- | --- |
-| Phase 0 | `OQ-005` --- object storage provider and file delivery |
-| Raised by invite-based joining | `OQ-021` --- can an existing candidate accept an invitation, given one role per account? |
-| Raised by invite-based joining | `OQ-022` --- invitation token mechanism and expiry |
-| Raised by invite-based joining | `OQ-023` --- how the invitee learns about the invitation, with no email and no notifications in the MVP |
+| Origin | Question | Resolution |
+| --- | --- | --- |
+| Phase 0 | `OQ-005` --- object storage provider and file delivery | **Resolved** by `D-016` --- Cloudinary, authorized in Hireflow first |
+| Raised by invite-based joining | `OQ-021` --- can an existing candidate accept an invitation, given one role per account? | **Resolved** by `D-013` --- an account may hold both capabilities |
+| Raised by invite-based joining | `OQ-022` --- invitation token mechanism and expiry | **Resolved** by `D-014` --- random, single-use, hashed, company-configurable expiry |
+| Raised by invite-based joining | `OQ-023` --- how the invitee learns about the invitation | **Resolved** by `D-015` --- in-app, on the invitee's own account |
 
 `OQ-001` (how a second recruiter joins a company) was **resolved** by the
 invite-based joining decision, `OQ-002` (which status transitions are legal) by
@@ -650,4 +680,14 @@ the fixed transition map, `OQ-003` (authentication mechanism) by the choice of
 server-side sessions, and `OQ-004` (language) by the choice of TypeScript.
 Resolving `OQ-001` raised three new blocking questions; resolving `OQ-002`,
 `OQ-003` and `OQ-004` each required none, so the net count went from five, up to
-seven, back to four.
+seven, back to four, and then to zero.
+
+`OQ-012` and `OQ-014` were closed by `D-013` as well: `OQ-012` asked the same
+question as `OQ-021` in account-model form, and `OQ-014` was reaffirmed --- one
+email is still exactly one account, because holding two capabilities is not a
+reason to create a second account.
+
+Note that closing these questions **changed requirements**, not just gaps:
+`FR-010` (one role per account) was superseded, so database design and
+authorization must be built around a set of capabilities plus per-company
+membership rather than a single role field.
