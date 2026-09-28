@@ -161,10 +161,19 @@ Design:
 
 -   users
 -   candidate profiles
--   recruiter profiles
 -   companies
+-   company memberships
+-   invitations
+-   sessions
 -   jobs
 -   applications
+
+Embedded (not separate collections): the application status-history array and
+the résumé reference (on the profile, and snapshotted on each application).
+"Recruiter profiles" from the original Phase 0 plan were dropped: recruiting is
+about the company, and the recruiter relationship is company membership, not a
+profile (see [`docs/database-design.md`](docs/database-design.md), which also
+documents the `D-013`--`D-016` revisions).
 
 Add indexes and constraints where justified.
 
@@ -663,9 +672,8 @@ socket; the signal delivery needs a Linux, macOS or container check.
 
 ### Next objective
 
-Start **Phase 3 --- Database Design** on explicit instruction. Phase 1 work is
-not committed. All Phase 0 blocking questions are now **resolved**; there are
-none outstanding.
+Phase 3 --- Database Design is underway. Phase 1 work is committed. All Phase 0
+blocking questions are now **resolved**; there are none outstanding.
 
 | Origin | Question | Resolution |
 | --- | --- | --- |

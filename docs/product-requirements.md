@@ -2,8 +2,8 @@
 
 > Phase 0 --- Product Requirements
 > Status: Complete (pending developer review)
-> Revised 2026-09-29 to record decisions `D-013`, `D-014` and `D-015`, taken in
-> the requirements discussion that followed Phase 1.
+> Revised 2026-09-29 to record decisions `D-013`, `D-014`, `D-015` and `D-016`,
+> taken in the requirements discussion that followed Phase 1.
 
 Application code now exists --- Phase 1 built the engineering foundation. This
 document remains the source of truth for **what** the product is and must do;

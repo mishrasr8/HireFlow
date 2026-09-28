@@ -12,6 +12,11 @@ import type { Server } from 'node:http';
 import { createApp } from './app.js';
 import { connectToDatabase, disconnectFromDatabase, getDatabaseStatus } from './config/database.js';
 import { loadEnv } from './config/env.js';
+// Registers every Phase 3 model before the connection opens, so the automatic
+// index build (Mongoose `autoIndex` in dev/test) creates the unique, partial
+// and TTL indexes on connect. See `models/index.ts` and
+// `docs/database-design.md`.
+import './models/index.js';
 import { SERVICE_NAME } from './services/health.service.js';
 import { drainServer } from './shutdown.js';
 
