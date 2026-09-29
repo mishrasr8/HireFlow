@@ -17,7 +17,9 @@ import { loadEnv } from './config/env.js';
 // and TTL indexes on connect. See `models/index.ts` and
 // `docs/database-design.md`.
 import './models/index.js';
+import { createAuthService } from './services/auth.service.js';
 import { SERVICE_NAME } from './services/health.service.js';
+import { createUserStore } from './services/userStore.js';
 import { drainServer } from './shutdown.js';
 
 /**
@@ -100,7 +102,8 @@ async function main(): Promise<void> {
   await connectToDatabase(env.MONGODB_URI);
 
   // 3. Only now accept traffic.
-  const app = createApp({ env, getDatabaseStatus });
+  const auth = createAuthService(createUserStore());
+  const app = createApp({ env, getDatabaseStatus, auth });
 
   const server = app.listen(env.PORT, () => {
     console.log(

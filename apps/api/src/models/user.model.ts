@@ -23,10 +23,13 @@
  * ## Password handling
  *
  * Only `passwordHash` is stored (`FR-005`, `NFR-S-002`); the raw password never
- * exists in MongoDB. The hash is produced by the authentication service in a
- * later phase; this schema only demands a plausible hash and forbids plaintext
- * in responses by never exposing it (that is a contract-layer concern, but the
- * field is intentionally named so no consumer can mistake it for a password).
+ * exists in MongoDB. The hash is produced by the authentication service
+ * (`services/password.service.ts`, scrypt) and verified there; this schema only
+ * demands a plausible hash and forbids plaintext in responses. Serialization is
+ * additionally guarded at the schema level by a `toJSON` transform that deletes
+ * the hash, so even a future code path that serializes a whole document cannot
+ * accidentally ship it (defence in depth -- the service layer never returns it
+ * in the first place).
  *
  * ## Email normalization
  *
@@ -56,7 +59,10 @@ const userSchema = new Schema<UserDoc>(
     passwordHash: {
       type: String,
       required: true,
-      minlength: 60, // bcrypt hashes are 60 chars; a shorter value is a plaintext or a bug
+      // A scrypt hash in this project's stored format is ~130 characters; the
+      // 60-character floor still stands as the check that rejects a plaintext
+      // or a corrupted short value. See `services/password.service.ts`.
+      minlength: 60,
       maxlength: 255,
     },
     capabilities: {
@@ -94,5 +100,18 @@ const userSchema = new Schema<UserDoc>(
  * not by capability, and "which users hold Recruiter?" is not an MVP query.
  */
 userSchema.index({ email: 1 }, { unique: true });
+
+// Serialization guard: a serialized user document must never carry the hash
+// (FR-005, NFR-S-002). This is defence in depth -- the auth service already
+// maps to a safe shape before anything is sent -- but it means a future code
+// path that passes a whole document to `res.json()` still cannot leak it.
+userSchema.set('toJSON', {
+  transform: (_doc, ret, _options) => {
+    // Destructure-and-discard removes the hash from the serialized
+    // representation while leaving every other field untouched.
+    const { passwordHash: _passwordHash, ...safe } = ret;
+    return safe;
+  },
+});
 
 export const User: Model<UserDoc> = model<UserDoc>('User', userSchema);

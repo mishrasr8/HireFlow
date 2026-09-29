@@ -64,6 +64,8 @@ describe('error codes', () => {
   it('exposes stable machine-readable codes', () => {
     expect(ERROR_CODES.NOT_FOUND).toBe('NOT_FOUND');
     expect(ERROR_CODES.VALIDATION_ERROR).toBe('VALIDATION_ERROR');
+    expect(ERROR_CODES.UNAUTHENTICATED).toBe('UNAUTHENTICATED');
+    expect(ERROR_CODES.CONFLICT).toBe('CONFLICT');
     expect(ERROR_CODES.INTERNAL_ERROR).toBe('INTERNAL_ERROR');
   });
 

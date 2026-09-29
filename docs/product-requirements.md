@@ -957,7 +957,7 @@ They are measurable, but they are not enterprise SLAs.
 | ID | Requirement |
 | --- | --- |
 | NFR-S-001 | Every authorization decision is made on the server. Client-side checks are user-experience only. |
-| NFR-S-002 | Passwords are hashed with a modern salted, deliberately slow algorithm. The specific algorithm is chosen in Phase 1. |
+| NFR-S-002 | Passwords are hashed with a modern salted, deliberately slow algorithm. The specific algorithm is chosen in Phase 4 (implemented as scrypt via `node:crypto`). |
 | NFR-S-003 | Passwords, password hashes, session identifiers and résumé contents are never written to logs. |
 | NFR-S-004 | All input is validated server-side against an explicit schema. Unknown fields are rejected or explicitly ignored --- never passed through. |
 | NFR-S-017 | The request body size is capped globally, at a limit comfortably above the largest legitimate payload, so an oversized or malicious body is rejected before it is parsed. Upload routes use their own explicit, documented limit (`FR-026`). |

@@ -194,6 +194,21 @@ describe('User schema', () => {
     });
     await expect(both.validate()).resolves.toBeUndefined();
   });
+
+  it('never serializes the password hash (FR-005, NFR-S-002)', () => {
+    const user = new User({
+      email: 'a@b.com',
+      name: 'X',
+      passwordHash: 'x'.repeat(60),
+      capabilities: ['CANDIDATE'],
+    });
+
+    const json = user.toJSON() as Record<string, unknown>;
+
+    expect(json).not.toHaveProperty('passwordHash');
+    expect(json['email']).toBe('a@b.com');
+    expect(json['capabilities']).toEqual(['CANDIDATE']);
+  });
 });
 
 describe('CandidateProfile schema', () => {

@@ -55,4 +55,14 @@ export class ApiError extends Error {
   static badRequest(message: string, details?: readonly ApiErrorDetail[]): ApiError {
     return new ApiError(400, ERROR_CODES.VALIDATION_ERROR, message, details);
   }
+
+  /** 401 for missing or invalid credentials. One message, never "which part was wrong". */
+  static unauthenticated(message = 'Authentication required'): ApiError {
+    return new ApiError(401, ERROR_CODES.UNAUTHENTICATED, message);
+  }
+
+  /** 409 when the request conflicts with existing state, e.g. a duplicate email. */
+  static conflict(message: string): ApiError {
+    return new ApiError(409, ERROR_CODES.CONFLICT, message);
+  }
 }

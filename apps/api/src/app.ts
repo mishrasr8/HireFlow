@@ -30,10 +30,10 @@ import type { AppDependencies } from './types/dependencies.js';
 /**
  * Upper bound on a JSON request body.
  *
- * Phase 1 has no body-carrying route, so this limit protects nothing yet. It is
- * registered now anyway so that the limit is in force from the very first commit
- * that adds one, rather than being added later as an urgent fix. It is also the
- * cheapest possible defence against memory exhaustion from a large body.
+ * The auth endpoints are the first body-carrying routes (registration carries
+ * a password), so this limit is now load-bearing: it is the cheapest possible
+ * defence against memory exhaustion from a large body, and it bounds how much
+ * input a handler can be asked to validate per request.
  */
 const MAX_JSON_BODY_BYTES = '100kb';
 
@@ -76,10 +76,10 @@ export function createApp(deps: AppDependencies): Express {
       origin: deps.env.CORS_ORIGINS,
       credentials: true,
 
-      // Phase 1 exposes exactly one endpoint and it is a GET. Listing methods
+      // GET (health) and POST (auth registration/login). Listing methods
       // explicitly is a real control -- it limits what a hostile page can even
       // attempt cross-origin -- and it grows as routes are added.
-      methods: ['GET'],
+      methods: ['GET', 'POST'],
 
       // Phase 1 accepts no custom headers from the client.
       allowedHeaders: ['Content-Type'],

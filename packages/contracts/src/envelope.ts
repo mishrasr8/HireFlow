@@ -22,7 +22,13 @@ import { z } from 'zod';
  * `satisfies` against the derived union, so the two can never drift apart: add
  * a code to the tuple and the object fails to compile until it is updated.
  */
-export const ERROR_CODE_VALUES = ['NOT_FOUND', 'VALIDATION_ERROR', 'INTERNAL_ERROR'] as const;
+export const ERROR_CODE_VALUES = [
+  'NOT_FOUND',
+  'VALIDATION_ERROR',
+  'UNAUTHENTICATED',
+  'CONFLICT',
+  'INTERNAL_ERROR',
+] as const;
 
 export type ErrorCode = (typeof ERROR_CODE_VALUES)[number];
 
@@ -38,6 +44,8 @@ export const errorCodeSchema = z.enum(ERROR_CODE_VALUES);
 export const ERROR_CODES = {
   NOT_FOUND: 'NOT_FOUND',
   VALIDATION_ERROR: 'VALIDATION_ERROR',
+  UNAUTHENTICATED: 'UNAUTHENTICATED',
+  CONFLICT: 'CONFLICT',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 } satisfies Record<ErrorCode, ErrorCode>;
 

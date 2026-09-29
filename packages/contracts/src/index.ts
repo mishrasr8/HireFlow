@@ -26,3 +26,19 @@ export {
   type HealthData,
   type HealthResponse,
 } from './health.js';
+
+export {
+  CAPABILITY_VALUES,
+  capabilitySchema,
+  registerRequestSchema,
+  loginRequestSchema,
+  userResponseSchema,
+  registerResponseSchema,
+  loginResponseSchema,
+  type Capability,
+  type RegisterRequest,
+  type LoginRequest,
+  type UserResponse,
+  type RegisterResponse,
+  type LoginResponse,
+} from './auth.js';

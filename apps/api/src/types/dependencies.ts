@@ -17,6 +17,7 @@
  */
 import type { DatabaseStatus } from '../config/database.js';
 import type { Env } from '../config/env.js';
+import type { AuthService } from '../services/auth.service.js';
 
 export interface AppDependencies {
   /** Validated, immutable process configuration. */
@@ -24,4 +25,13 @@ export interface AppDependencies {
 
   /** Current MongoDB connection state, read fresh on every call. */
   readonly getDatabaseStatus: () => DatabaseStatus;
+
+  /**
+   * Authentication operations (registration, credential verification).
+   *
+   * Backed by MongoDB through `createUserStore()` in production; faked in
+   * tests, which is what keeps the auth endpoint tests offline. The HTTP layer
+   * never imports Mongoose; it only knows this interface.
+   */
+  readonly auth: AuthService;
 }

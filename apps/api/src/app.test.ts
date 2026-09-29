@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createApp } from './app.js';
 import { REQUEST_ID_HEADER } from './middleware/requestId.js';
+import { createFakeAuthService } from './testing/fakeAuth.js';
 import { parseOrThrow } from './testing/parseOrThrow.js';
 import type { AppDependencies } from './types/dependencies.js';
 
@@ -35,6 +36,7 @@ function buildApp(database: 'connected' | 'disconnected' = 'connected') {
   return createApp({
     env: TEST_ENV,
     getDatabaseStatus: () => database,
+    auth: createFakeAuthService(),
   } satisfies AppDependencies);
 }
 
@@ -48,6 +50,7 @@ function buildAppThatFails(nodeEnv: AppDependencies['env']['NODE_ENV']) {
     getDatabaseStatus: () => {
       throw new Error('connection pool exhausted at 10.0.0.5:27017');
     },
+    auth: createFakeAuthService(),
   } satisfies AppDependencies);
 }
 
@@ -229,7 +232,7 @@ describe('CORS', () => {
     expect(response.headers['access-control-allow-origin']).not.toBe('*');
   });
 
-  it('answers a preflight request for the one method Phase 1 exposes', async () => {
+  it('answers a preflight request for the methods the API exposes', async () => {
     const response = await request(buildApp())
       .options('/api/health')
       .set('Origin', ALLOWED_ORIGIN)
@@ -237,6 +240,8 @@ describe('CORS', () => {
 
     expect(response.status).toBe(204);
     expect(response.headers['access-control-allow-methods']).toContain('GET');
+    // POST exists for the auth endpoints added in Phase 4.1.
+    expect(response.headers['access-control-allow-methods']).toContain('POST');
   });
 });
 
@@ -260,6 +265,7 @@ describe('hardening', () => {
     const app = createApp({
       env: { ...TEST_ENV, NODE_ENV: 'production' },
       getDatabaseStatus: () => 'connected',
+      auth: createFakeAuthService(),
     } satisfies AppDependencies);
 
     const response = await request(app).get('/api/health');

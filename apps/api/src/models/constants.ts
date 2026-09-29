@@ -2,21 +2,28 @@
  * Domain constants shared by the Phase 3 schemas.
  *
  * These are *persistence* constants: the closed value sets that documents in
- * MongoDB are allowed to hold. They live in the API package (not in
- * `@hireflow/contracts`) because nothing in this phase puts them on the wire --
- * contracts are the HTTP surface, and these sets have no HTTP shape yet. When a
- * later phase builds the application API, the values that actually travel over
- * the wire move into (or are echoed by) the contracts package deliberately;
- * they are not duplicated there ahead of that.
+ * MongoDB are allowed to hold. They live in the API package because most of
+ * them have no HTTP shape yet -- contracts are the HTTP surface, and nothing
+ * else in this phase puts these sets on the wire.
+ *
+ * The one deliberate exception is `CAPABILITIES`: Phase 4 registration puts a
+ * capability on the wire, so the wire enum now lives in `@hireflow/contracts`
+ * and is *the* source of truth. This file derives the persistence set from it,
+ * which is the `D-001`/`DC-001` guarantee stated as a compile-time fact: the
+ * database can never store a capability the wire contract does not know about,
+ * and vice versa. When a later phase puts another set on the wire (for example
+ * employment type on a job form), that set moves into contracts the same way,
+ * deliberately, rather than being duplicated ahead of time.
  *
  * Everything here is a *data-domain fact*:
  *
- *  - `CAPABILITIES` is the closed set from `D-001`/`D-013`. `DC-001` requires
- *    that a third capability (for example Admin) can be added later without
- *    redesigning stored data or authorization logic -- which is exactly why the
- *    set is an enum over an array of strings rather than a fixed object shape
- *    with one boolean per capability. Adding Admin is adding one value to the
- *    enum; it is not a schema migration and not a rewrite of `FR-097`.
+ *  - `CAPABILITIES` is the closed set from `D-001`/`D-013`, echoed from the
+ *    wire contract. `DC-001` requires that a third capability (for example
+ *    Admin) can be added later without redesigning stored data or
+ *    authorization logic -- which is exactly why the set is an enum over an
+ *    array of strings rather than a fixed object shape with one boolean per
+ *    capability. Adding Admin is adding one value to the enum; it is not a
+ *    schema migration and not a rewrite of `FR-097`.
  *  - `APPLICATION_STATUSES` is the controlled status set from `FR-059`/`DC-003`.
  *  - The *terminal* set is a data fact, not transition-map logic: 10.6.1
  *    declares `HIRED`, `REJECTED` and `WITHDRAWN` terminal with no outbound
@@ -34,9 +41,10 @@
  *    A closed enum is used because silently accepting an unvalidated string
  *    would defeat `DC-003` (closed sets are schema enums).
  */
+import { CAPABILITY_VALUES } from '@hireflow/contracts';
 
 /** The capabilities an account may hold in the MVP (`D-001`, `D-013`). */
-export const CAPABILITIES = ['CANDIDATE', 'RECRUITER'] as const;
+export const CAPABILITIES = [...CAPABILITY_VALUES] as const;
 
 /**
  * Application statuses, exactly the eight values of `FR-059`. Closed set:
