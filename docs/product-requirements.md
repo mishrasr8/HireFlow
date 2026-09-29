@@ -275,7 +275,7 @@ justify it (`OQ-018`).
 ``` text
 Register (select Candidate capability)
   → Log in
-  → Complete profile (skills, experience, education, summary)
+  → Complete profile (name, professional headline, location, summary, at least one skill, at least one education entry and a current résumé; experience is optional)
   → Upload one current resume (PDF)
   → Browse published jobs (most recent first)
   → Open a job and read the full description
@@ -297,6 +297,14 @@ required to browse jobs or read job details (`FR-001`).
   Recruiter capability by accepting a company invitation, and keeps its
   Candidate capability and profile throughout (`D-013`, `FR-096`).
 - The candidate may hold at most one active application per job (`FR-057`).
+- Applying requires a **complete profile** (the profile-completeness rule,
+  `OQ-011`, resolved): the account name, professional headline, location,
+  summary, at least one skill, at least one education entry and a current
+  résumé must all be present. **Experience is optional** --- a fresher with no
+  professional experience, i.e. an empty `experience` array, is
+  profile-complete; no placeholder values ("Fresher", "No experience", "N/A")
+  or fake employment history are acceptable. The rule is enforced server-side
+  when applying (`FR-055`); the completion indicator (`FR-022`) is UX only.
 - Applying attaches the résumé that is current at the moment of applying
   (`FR-056`).
 - An application starts in `APPLIED` (`FR-058`).
@@ -439,7 +447,7 @@ deployment.
 | 5c | **In-app invitation delivery:** the invitee sees pending invitations on their own account and accepts or declines them; no email provider | `FR-099`, `D-015` |
 | 6 | Job create / edit / publish / close / reopen / list | `FR-043`---`FR-054` |
 | 7 | Public job browsing and job detail (bounded list, newest first) | `FR-001`, `FR-075`, `FR-076` |
-| 8 | Apply to a published job, one active application per candidate per job | `FR-055`---`FR-058` |
+| 8 | Apply to a published job (requires a complete profile, `OQ-011`), one active application per candidate per job | `FR-055`---`FR-058` |
 | 9 | Application status lifecycle: 8 controlled statuses, enforced transition map, 3 terminal states | `FR-059`, `FR-070`, `FR-085`, `FR-086` |
 | 10 | Append-only status history recording previous status, new status, actor and timestamp | `FR-060`, `FR-061` |
 | 11 | Recruiter applicant list, filterable by status, with per-status counts | `FR-066`, `FR-069` |
@@ -713,6 +721,22 @@ section 10.0 as intentionally retired are never reused either.
 | FR-020 | MVP | Profile input is validated on the server for required fields, types, lengths and formats. |
 | FR-021 | MVP | A candidate cannot read or modify another candidate's profile. |
 | FR-022 | MVP | A candidate can see how complete their profile is, so they know what is missing before applying. |
+
+**Profile completeness (`OQ-011`, resolved):** Completeness is a property of
+the profile that decides **eligibility to apply**, and it is separate from
+editing. A candidate may create and progressively update an incomplete profile
+(`FR-015`); editing never requires the completeness conditions to be satisfied.
+A candidate is complete / eligible to apply when the account name
+(`users.name`), the professional headline, the location, the summary, at least
+one skill, at least one education entry and a current résumé are all present.
+**Experience is optional for completeness**: an empty `experience` array is
+valid, because Hireflow must support freshers / entry-level candidates who have
+no professional experience yet, and no placeholder values ("Fresher", "No
+experience", "N/A") or fake employment history may be required --- the absence
+of experience is a legitimate profile state. The rule is an MVP product rule,
+not authorization: it is enforced by server-side validation when the candidate
+applies (`FR-055`), while the completion indicator (`FR-022`) is UX only
+(`NFR-S-001`).
 
 ### 10.3 Résumé
 
@@ -1128,6 +1152,7 @@ that were outstanding when Phase 0 finished.
 | OQ-023 | How is an invitation delivered to the invitee in the MVP, given that the MVP has no email and no notifications? | **RESOLVED --- in-app, on the invitee's own account.** The invited user logs in, sees the invitations addressed to them, and accepts or declines. No email provider is required for the MVP. This is the minimum surface that makes invite-based joining usable, and explicitly **not** a general notification system --- a notification feed stays in V1 (`D-007`). Option (b), taking an email dependency, was rejected; option (c), relying on the inviter to pass the invitation on out of band, was rejected as too weak to trust. See `D-015`, `FR-099`, `DC-013`, `R-15`, and `R-06` for the improvement to the email dependency. |
 | OQ-009 | What is the job status set? | **RESOLVED --- `DRAFT` / `PUBLISHED` / `CLOSED`, no `PAUSED` state.** The status set is finalized after the Phase 3 database design review: a job lives `DRAFT` → `PUBLISHED` ↔ `CLOSED` (`FR-043`, `FR-046`---`FR-048`). There is no paused state in the current product. The separate question bundled into `OQ-009` --- whether edits to a live, published job are versioned for candidates --- remains open (`FR-206`, Future; tracked in §13.2). |
 | OQ-024 | May a candidate re-apply to the same job after a previous application reaches a terminal status? | **RESOLVED --- yes.** A candidate may submit a new application to the same job after the previous application has reached a terminal status (`HIRED` / `REJECTED` / `WITHDRAWN`). `FR-057` bounds one *active* application per candidate/job, and the Phase 3 partial unique index on `{ candidateUserId, jobId }` where `active` permits a new row once the old one is inactive; no data-model change was needed. The other `OQ-024` halves --- transition reversibility and candidate withdrawal after `UNDER_REVIEW` --- remain open (tracked in §13.2). |
+| OQ-011 | Must a candidate meet a minimum profile completeness to apply? | **RESOLVED --- yes, and the rule is fixed.** A candidate is **profile-complete / eligible to apply** when all of the following are true: the account's name is present (`users.name`), the professional headline is present, the location is present, the summary is present, at least one skill exists, `education` contains at least one entry, and a current résumé exists. **Experience is optional**: an empty `experience` array is valid, because Hireflow must support freshers / entry-level candidates with no professional experience. No placeholder values ("Fresher", "No experience", "N/A") or fake employment history may be required; the absence of experience is a legitimate profile state. Completeness governs **eligibility to apply** only: a candidate may create and progressively edit an incomplete profile (`FR-015`), should be able to see their completion state (`FR-022`), and applying requires the rule to be met. The rule is an MVP product rule enforced **server-side at apply time** (`FR-055`); frontend completion indicators are UX only and are not authorization (`NFR-S-001`). |
 
 ### 13.2 Open
 
@@ -1138,7 +1163,6 @@ that were outstanding when Phase 0 finished.
 | OQ-008 | **Is salary range required, optional, or omitted?** Some regions treat it as legally sensitive. | Phase 1 | `FR-044` currently treats it as optional. |
 | OQ-009 | **Are edits to a live job versioned for candidates?** The *status set* half is resolved (§13.1): the job statuses are `DRAFT` / `PUBLISHED` / `CLOSED`, with no `PAUSED` state. | Future | `FR-206`; draft/publish/close/reopen are `FR-043`, `FR-046`---`FR-048`. |
 | OQ-010 | **What happens to live applications when a job is closed?** Retained and visible to the recruiter, with no new applications accepted --- currently assumed. And can a closed job be reopened with applications intact? | Phase 1 | `FR-047`, `FR-048`. |
-| OQ-011 | **Must a candidate meet a minimum profile completeness to apply?** Currently unspecified. | Phase 1 | Affects `FR-022` and the apply flow. |
 | OQ-013 | **Is self-service account deletion and data export required before a public launch?** | Before public launch | `NFR-S-016`, `R-10`. A real obligation in many jurisdictions. |
 | OQ-015 | **Can a recruiter leave a company, or be removed by another recruiter of that company?** Currently neither. | Phase 1 | `D-009` makes this concrete: invitations can be issued and declined, but a mistaken acceptance is currently irreversible. Listed in section 8.5 as V1. Note the interaction with `D-013`: leaving would release the one-company limit in `FR-037` and `FR-083`, so an existing Candidate who accepted an invitation would need a way to separate their two capabilities cleanly. |
 | OQ-016 | **Must company names be unique?** | Phase 1 | **Downgraded from blocking.** With invite-based joining (`D-009`) a joiner never types or searches a company name, so uniqueness is no longer needed for correctness --- only for clarity. A soft "name already in use" warning is probably sufficient; a unique index is not required. |
