@@ -24,8 +24,9 @@
  *
  * ## Status and the timestamps around it
  *
- * `status` follows `DRAFT` → `PUBLISHED` ↔ `CLOSED` (`OQ-009`; no PAUSED state
- * in the MVP). `publishedAt` and `closedAt` are recorded by the job service
+ * `status` follows `DRAFT` → `PUBLISHED` ↔ `CLOSED` (the finalized set,
+ * `OQ-009` resolved; no PAUSED state). `publishedAt` and `closedAt` are
+ * recorded by the job service
  * when those transitions happen; the schema does not auto-derive them because
  * an edit that touches the document must not silently corrupt the times.
  *

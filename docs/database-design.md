@@ -54,8 +54,8 @@ foundation, not their replacement.
 6. **No numeric bounds are invented.** `FR-098`/§13.3 leave the invitation
    expiry and pending-limit bounds to Phase 1 validation. The schema checks
    _shape_ (positive integer) and requires the values; it does not guess a
-   product policy. Same for résumé size (`OQ-007`), salary policy (`OQ-008`)
-   and the job status set (`OQ-009`).
+   product policy. Same for résumé size (`OQ-007`) and salary policy
+   (`OQ-008`).
 
 7. **Closed sets are schema enums.** Statuses and capabilities are enum-valued
    (`DC-003`); arbitrary strings are rejected by the schema, not only by the
@@ -277,10 +277,10 @@ Deliberately absent: `revokedAt`. Logout _deletes_ the row immediately
 | `responsibilities` | String[]           | each ≤2000                                                                      | `FR-044`. May be empty; "a draft may be incomplete" vs "publish requires a minimum" is `FR-043`+`FR-051`, decided by the publish gate in a later phase. |
 | `requirements`     | String[]           | each ≤2000                                                                      |                                                                                                                                                         |
 | `location`         | String             | required, ≤120                                                                  |                                                                                                                                                         |
-| `employmentType`   | String             | required, enum (provisional): `FULL_TIME`/`PART_TIME`/`CONTRACT`/`INTERNSHIP`   | `FR-044` requires the field but does **not enumerate values**; this set is a visible, flagged, easily-changed guess (section 10).                       |
+| `employmentType`   | String             | required, enum: `FULL_TIME`/`PART_TIME`/`CONTRACT`/`INTERNSHIP`                 | Final value set (product decision; `FR-044` required the field but did not enumerate the values).                                                       |
 | `salaryRange`      | embedded or null   | `min`/`max` Number ≥0, `currency` ≤3 chars; validator `max ≥ min` when both set | Optional per `OQ-008`.                                                                                                                                  |
 | `skills`           | String[]           | each ≤50                                                                        | skill tags                                                                                                                                              |
-| `status`           | String             | enum `DRAFT`/`PUBLISHED`/`CLOSED`, default `DRAFT`                              | The assumed set (`OQ-009`).                                                                                                                             |
+| `status`           | String             | enum `DRAFT`/`PUBLISHED`/`CLOSED`, default `DRAFT`                              | Final set (`OQ-009` resolved); no `PAUSED` state.                                                                                                       |
 | `publishedAt`      | Date or null       | default null                                                                    | Set by the service on publish.                                                                                                                          |
 | `closedAt`         | Date or null       | default null                                                                    | Set by the service on close.                                                                                                                            |
 
@@ -408,7 +408,7 @@ single CAS write path that sets `status` and `active` together, and by the
 | **Invitation lifecycle** (PENDING only, time-based expiry interpretation) | **Service** (later phase)                  | The conditional update above plus lazy-expiry on read; the schema's enum + single open state support it.                                                                                                                                                                                                                                                    |
 | **Immutable, append-only history**                                        | **Service/API discipline** + schema guards | MongoDB cannot freeze an array. All status writes go through the CAS-SET-push update (`NFR-R-003`): status change and history append are one atomic document write, so "status changed but no history entry" is structurally impossible. Existing entries are never `$set`; the chain validator detects (and tests prove the write path guards) corruption. |
 | Compare-and-set staleness (`FR-087`)                                      | **Service** + query shape                  | The update _is_ the CAS: filter on the expected `status`; a stale writer's filter matches nothing and the loser is told to reload (`NFR-R-008`).                                                                                                                                                                                                            |
-| Re-application after a terminal status (`OQ-024`)                         | **Service** (decision pending)             | The partial index permits it (old row is `active: false`); the service decides whether to allow it.                                                                                                                                                                                                                                                         |
+| Re-application after a terminal status (`OQ-024`)                         | **Service** (product decision: permitted)  | Re-application after a terminal status is **allowed**: `FR-057` bounds _active_ applications, and the partial index permits a new row once the old one is inactive.                                                                                                                                                                                         |
 | Pending-invitation limit and expiry _bounds_                              | **Service** (Phase 1 validation decision)  | The schema stores the company's values; the ±bounds are not invented here.                                                                                                                                                                                                                                                                                  |
 
 **Two honest caveats** (do not lose either in an interview):
@@ -484,7 +484,7 @@ noted as a deferred risk (section 10).
 | `invitedEmail`              | stored alongside `invitedUserId`                                  | email only via the user reference                                                                                                                 | The invitation stays self-describing and auditable if the email later changes; one string for display + provenance.                                   |
 | `Application.companyId`     | denormalized                                                      | join via job per query                                                                                                                            | `DC-005`: company scope lives in every recruiter query; written once, never edited. Costs one denormalized field.                                     |
 | Company settings            | required with no default                                          | defaulted values (e.g. 72h / 5)                                                                                                                   | A default _is_ the undecided numeric decision (§13.3). Required forces the choice to be explicit.                                                     |
-| Employment type             | a visible provisional enum                                        | an unvalidated string                                                                                                                             | `FR-044` names the field but not the values; a closed, easily-edited set with a flagged open item beats free text.                                    |
+| Employment type             | a finalized closed enum                                           | an unvalidated string                                                                                                                             | `FR-044` names the field but not the values; a closed enum, now confirmed by product decision, beats free text.                                       |
 | Resumé snapshot             | only the résumé reference                                         | a full profile snapshot                                                                                                                           | `FR-056` wording ("profile _and_ current résumé reference") is read narrowly; flagged as an open question in section 10.                              |
 | Normalized email            | `lowercase` stored, display via `name`                            | preserve original casing                                                                                                                          | The cost of a case-insensitive unique index without collation is losing email casing; the account name owns display.                                  |
 
@@ -500,7 +500,7 @@ the data model guarantees and what the requirements leave open.
 | Candidate replaces résumé (`FR-024`)             | `candidate_profiles.resume` path is overwritten with a new asset reference (and the old Cloudinary file is deleted by the upload service, `FR-030`). **Past applications' `resumeSnapshot` are untouched** (`FR-056`).                                       | Deleting the old Cloudinary asset is service logic (Phase with Cloudinary); orphan handling is `NFR-R-002`.                                                                             |
 | Candidate deletes résumé (`FR-030`)              | `resume` → null. Snapshots remain.                                                                                                                                                                                                                           |                                                                                                                                                                                         |
 | Recruiter closes a job (`FR-047`)                | `jobs.status → CLOSED`, `closedAt` set. Applications are **retained** (`FR-047`: "its applications and history are retained"); nothing cascades.                                                                                                             | Whether a closed job can reopen with applications intact (`OQ-010`) is answered by the reopen service; the schema stores no per-application "job was closed when I applied" flag.       |
-| Application reaches a terminal status (`FR-085`) | `status`, `active → false`, history entry appended. The row is never soft-deleted and nothing is purged.                                                                                                                                                     | Re-application after withdrawal/rejection is `OQ-024` (the index permits it; the service will decide).                                                                                  |
+| Application reaches a terminal status (`FR-085`) | `status`, `active → false`, history entry appended. The row is never soft-deleted and nothing is purged.                                                                                                                                                     | Re-application after withdrawal/rejection is **permitted** (product decision): the old row is inactive, so the partial unique index allows a new application.                           |
 | Invitation expires                               | Lazy expiry in the service: on read, a `PENDING` row past `expiresAt` is persisted as `EXPIRED` + `expiredAt`. The row is kept.                                                                                                                              | TTL/sweep frequency is an operational detail; volume is tiny (invitations are rare).                                                                                                    |
 | Invitation accepted                              | The conditional PENDING update sets `ACCEPTED` + `acceptedAt`; the membership service then inserts **one** `CompanyMembership` row and **adds** the Recruiter capability (`FR-096`). The unique `userId` membership index backstops a violation of `FR-037`. | The add-capability step is a `$addToSet` on `users.capabilities`; atomicity across the two documents is a Phase 4 design question (`NFR-R-003` is about status+history, not this pair). |
 | Session revoked (logout)                         | The row is **deleted** (`FR-092`). Replayed identifiers find nothing.                                                                                                                                                                                        |                                                                                                                                                                                         |
@@ -521,38 +521,35 @@ These are decisions the requirements deliberately leave open; the schema was
 designed to stay valid under any answer. None are fabricated -- each is an
 existing open question in `docs/product-requirements.md`.
 
-1. **Re-application after a terminal status** (`OQ-024`). The partial unique
-   index permits it; the service must decide. The schema requires no change
-   either way.
-2. **Employment type values** (the field is `FR-044`, the values are not).
-   The provisional enum is one line to edit.
-3. **Invitation numeric bounds** (expiry and pending-limit min/max) and
+Three items that previously appeared here were resolved by product decision
+after this list was written (recorded in `docs/product-requirements.md`
+§13.1): re-application after a terminal status is **permitted**; the job
+status set is fixed as `DRAFT`/`PUBLISHED`/`CLOSED` (no `PAUSED`); and the
+employment-type set is fixed as `FULL_TIME`/`PART_TIME`/`CONTRACT`/`INTERNSHIP`.
+The Phase 3 schema needed no change for any of them -- each was already
+supported as designed.
+
+1. **Invitation numeric bounds** (expiry and pending-limit min/max) and
    **résumé size cap** (`OQ-007`) -- Phase 1 validation decisions; the schema
    checks shape only.
-4. **`FR-056` profile snapshot scope.** "Records the candidate's profile and
+2. **`FR-056` profile snapshot scope.** "Records the candidate's profile and
    current résumé reference" is read here as _résumé reference only_ on the
    application. If product wants a full profile snapshot, that is a second
    embedded subdocument (or a reference to a versioned profile) -- a schema
    addition, not a rework. Flagged for the developer.
-5. **Job status set** (`OQ-009`): Draft/Published/Closed assumed; a `PAUSED`
-   value later is an enum addition.
-6. **Session concurrency** (`OQ-025`): the schema supports any of the four
+3. **Session concurrency** (`OQ-025`): the schema supports any of the four
    behaviours (N sessions, revoke-on-login, device list). A "session list"
    UI would need nothing new; "revoke all on login" is a query on `userId`.
-7. **Array-size caps** on `experience`/`education`/`skills`: none are invented
+4. **Array-size caps** on `experience`/`education`/`skills`: none are invented
    (no requirement bounds them). If unbounded growth becomes real, add explicit
    caps -- the same reasoning as the history's 6-entry cap.
-8. **Production index management**: `autoIndex` is currently the Mongoose
+5. **Production index management**: `autoIndex` is currently the Mongoose
    default (indexes build on connect). The deployment phase should set
    `autoIndex: false` in production and manage indexes deliberately
    (`NFR-D`-adjacent operational concern).
-9. **V1 growth**: job search text index / Atlas Search (`FR-101`), and moving
+6. **V1 growth**: job search text index / Atlas Search (`FR-101`), and moving
    the status enums into `@hireflow/contracts` when the Application API first
    puts them on the wire.
-10. **The old README Phase 3 list** (users, candidate profiles, recruiter
-    profiles, companies, jobs, applications) predates `D-013`--`D-016`; it is
-    superseded by the eight collections above. Recruiter profiles are not a
-    concept in the current requirements.
 
 ---
 

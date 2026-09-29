@@ -71,8 +71,9 @@
  *
  * Note that the partial index *permits* a re-application after a terminal
  * status: a `WITHDRAWN`/`REJECTED`/`HIRED` row has `active: false` and does
- * not collide. Whether re-application is allowed is `OQ-024` (answering it is
- * a service-layer decision); the schema supports either answer.
+ * not collide. That matches the product decision: a candidate may submit a new
+ * application to the same job after the previous one reaches a terminal
+ * status (`FR-057` bounds *active* applications only).
  *
  * ## Status history is embedded, not a collection
  *
@@ -224,7 +225,8 @@ applicationSchema.pre<ApplicationDoc>('validate', function (next) {
  * candidate/job pair, even under concurrent requests. The partial filter is an
  * equality on `active` because `partialFilterExpression` cannot express
  * `$in`. Re-application after a terminal status is *not* blocked here by
- * design (`OQ-024`; the old row is inactive and does not collide).
+ * design (product decision: permitted; the old row is inactive and does not
+ * collide).
  */
 applicationSchema.index(
   { candidateUserId: 1, jobId: 1 },

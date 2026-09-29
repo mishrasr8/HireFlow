@@ -25,13 +25,14 @@
  *    The full from/to transition map itself is domain/service logic and is
  *    deliberately *not* implemented in this phase.
  *  - `INVITATION_STATUSES` is the lifecycle from `FR-098`/`D-014`.
- *  - `JOB_STATUSES` is the assumed Draft / Published / Closed set; `OQ-009`
- *    remains open. Adding or renaming a value later is an enum change.
- *  - `EMPLOYMENT_TYPES` is a *provisional* value set: `FR-044` requires an
- *    employment type but does not enumerate the values, so this phase defines
- *    the obvious set and flags it for product confirmation (see
- *    `docs/database-design.md`). The choice is visible, testable and cheap to
- *    change; silently leaving the field an unvalidated string would not be.
+ *  - `JOB_STATUSES` is the finalized job lifecycle (`OQ-009`): Draft /
+ *    Published / Closed, with no PAUSED state. Adding or renaming a value
+ *    later is an enum change.
+ *  - `EMPLOYMENT_TYPES` is the finalized employment-type value set. `FR-044`
+ *    requires the field but did not enumerate the values; product decision
+ *    (recorded in `docs/product-requirements.md` §13.1) confirmed these four.
+ *    A closed enum is used because silently accepting an unvalidated string
+ *    would defeat `DC-003` (closed sets are schema enums).
  */
 
 /** The capabilities an account may hold in the MVP (`D-001`, `D-013`). */
@@ -71,13 +72,14 @@ export function isActiveApplicationStatus(status: ApplicationStatus): boolean {
 /** Invitation lifecycle, exactly the four states of `FR-098`/`D-014`. */
 export const INVITATION_STATUSES = ['PENDING', 'ACCEPTED', 'DECLINED', 'EXPIRED'] as const;
 
-/** Job lifecycle: the assumed set behind `FR-043`/`FR-046`/`FR-047`/`FR-048` (`OQ-009`). */
+/** Job lifecycle: the finalized set behind `FR-043`/`FR-046`/`FR-047`/`FR-048` (`OQ-009`). */
 export const JOB_STATUSES = ['DRAFT', 'PUBLISHED', 'CLOSED'] as const;
 
 /**
- * Provisional employment-type values. `FR-044` requires the field but does not
- * enumerate it. Flagged in `docs/database-design.md` as needing product
- * confirmation before Phase 4; the set is deliberately easy to change.
+ * Employment-type values. `FR-044` requires the field but did not enumerate
+ * the values; this set is the product decision (recorded in
+ * `docs/product-requirements.md` §13.1). Extending the set later is a
+ * one-value enum change.
  */
 export const EMPLOYMENT_TYPES = ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP'] as const;
 
