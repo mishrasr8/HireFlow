@@ -263,18 +263,27 @@ which avoids two sources of truth (section 9). No role/permission fields:
 
 ### 4.6 `sessions`
 
-| Field                    | Type            | Constraints                                       | Notes                                                                                              |
-| ------------------------ | --------------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `_id`                    | ObjectId        |                                                   |                                                                                                    |
-| `tokenHash`              | String          | required, 64-hex, **unique index**                | Hash of the opaque session identifier (`D-011`, `FR-089`). Same rationale as the invitation token. |
-| `userId`                 | ObjectId → User | required, index                                   | "Revoke all sessions for this user" (`FR-093`, `FR-110`).                                          |
-| `expiresAt`              | Date            | required, **TTL index** (`expireAfterSeconds: 0`) | Expired records are _deleted_, not retained (`NFR-S-016`).                                         |
-| `lastUsedAt`             | Date            | required                                          | The field an idle-timeout policy (a §13.3 design task) will read; recorded on resolution.          |
-| `createdAt`, `updatedAt` | Date            | timestamps                                        |                                                                                                    |
+| Field                    | Type            | Constraints                                       | Notes                                                                                                                                                                   |
+| ------------------------ | --------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `_id`                    | ObjectId        |                                                   |                                                                                                                                                                         |
+| `tokenHash`              | String          | required, 64-hex, **unique index**                | Hash of the opaque session identifier (`D-011`, `FR-089`). Same rationale as the invitation token.                                                                      |
+| `userId`                 | ObjectId → User | required, index                                   | "Revoke all sessions for this user" (`FR-093`, `FR-110`).                                                                                                               |
+| `expiresAt`              | Date            | required, **TTL index** (`expireAfterSeconds: 0`) | Expired records are _deleted_, not retained (`NFR-S-016`).                                                                                                              |
+| `lastUsedAt`             | Date            | required                                          | The field an idle-timeout policy (a §13.3 design task) will read; recorded on resolution. Never the eviction basis: the 5-session cap evicts by `createdAt` (`OQ-025`). |
+| `createdAt`, `updatedAt` | Date            | timestamps                                        |                                                                                                                                                                         |
 
 Deliberately absent: `revokedAt`. Logout _deletes_ the row immediately
 (`FR-092`); a field that kept dead sessions around would contradict
 `NFR-S-016`. No identity claims live in the session (`FR-091`, section 5).
+
+**Session cap (`OQ-025`, resolved).** A single account may hold at most **5
+active sessions**. When a successful login would create a sixth, the service
+(the Phase 4 authentication implementation) deletes the oldest active session
+for that user and then creates the new one; "oldest" means oldest by
+`createdAt`. `lastUsedAt` never determines eviction --- it exists only for a
+future idle-timeout policy and observability. No schema change is needed:
+`createdAt` is already a timestamp, and the eviction query reads the user's
+non-expired rows by `userId` (indexed), ordered by `createdAt`.
 
 ### 4.7 `jobs`
 
@@ -363,7 +372,7 @@ Every index exists to serve a named query; none are "because indexes are good".
 | `invitations`         | `{ invitedUserId: 1, status: 1 }`       | no     |                                 | The signed-in user's own (pending) invitations (`FR-099`)                                        | The only in-app invitation list in the MVP (`DC-013`).                                |
 | `invitations`         | `{ companyId: 1, status: 1 }`           | no     |                                 | Pending count per company (the `maxPendingInvitations` limit) and a recruiter's sent invitations | The pending limit needs a company-first count.                                        |
 | `sessions`            | `{ tokenHash: 1 }`                      | yes    |                                 | Resolution of every authenticated request (`FR-091`)                                             | Hot path; unique by construction.                                                     |
-| `sessions`            | `{ userId: 1 }`                         | no     |                                 | Revoke all sessions (`FR-093`, `FR-110`)                                                         |                                                                                       |
+| `sessions`            | `{ userId: 1 }`                         | no     |                                 | Revoke all sessions (`FR-093`, `FR-110`); session-cap eviction by `createdAt` (`OQ-025`)         |                                                                                       |
 | `sessions`            | `{ expiresAt: 1 }`                      | no     | **TTL** `expireAfterSeconds: 0` | Delete expired sessions (`NFR-S-016`)                                                            | Documented cleanup policy, not a query.                                               |
 | `jobs`                | `{ status: 1, publishedAt: -1 }`        | no     |                                 | Browse published jobs newest-first, bounded (`FR-075`, `FR-076`)                                 | Filter + sort in one scan; `status` leads so drafts/closed never enter.               |
 | `jobs`                | `{ companyId: 1, status: 1 }`           | no     |                                 | Recruiter's own-company job list (`FR-053`); company profile published list (`FR-050`)           | Company-first filter that the browse index cannot serve.                              |
@@ -422,6 +431,8 @@ single CAS write path that sets `status` and `active` together, and by the
 | Re-application after a terminal status (`OQ-024`)                         | **Service** (product decision: permitted)        | Re-application after a terminal status is **allowed**: `FR-057` bounds _active_ applications, and the partial index permits a new row once the old one is inactive.                                                                                                                                                                                                                                     |
 | Pending-invitation limit and expiry _bounds_                              | **Service** (Phase 1 validation decision)        | The schema stores the company's values; the ±bounds are not invented here.                                                                                                                                                                                                                                                                                                                              |
 | Profile-completeness gate at apply (`OQ-011`)                             | **Service** (apply-flow validation, later phase) | Not a schema constraint: every profile field stays individually optional so an incomplete profile is storable and editable (`FR-015`). At apply time the service checks `users.name`, headline, location, summary, ≥1 skill, ≥1 education entry, and a current `resume`. **Experience is optional** (an empty array is valid); no placeholder values or fake history are required (`OQ-011`, resolved). |
+| At most 5 active sessions per account (`OQ-025`)                          | **Service** (Phase 4 authentication)             | Not a schema constraint: the schema stores one row per session and imposes no cap. On login the service deletes the user's oldest non-expired session by `createdAt` when a sixth would be created; `lastUsedAt` never drives eviction.                                                                                                                                                                 |
+| MVP rate limits (`OQ-020`)                                                | **Service** (Phase 4, per-operation guards)      | Registration 5/hour/IP; login 10/15 min per IP + login identifier; application submission 10/hour/authenticated user; invitation issuance 20/hour/authenticated recruiter. Keys never contain passwords or raw session identifiers. In-process state is acceptable for a single instance; a shared store (Redis) is a multi-instance scaling requirement, not an MVP dependency.                        |
 
 **Two honest caveats** (do not lose either in an interview):
 
@@ -517,6 +528,7 @@ the data model guarantees and what the requirements leave open.
 | Invitation accepted                              | The conditional PENDING update sets `ACCEPTED` + `acceptedAt`; the membership service then inserts **one** `CompanyMembership` row and **adds** the Recruiter capability (`FR-096`). The unique `userId` membership index backstops a violation of `FR-037`. | The add-capability step is a `$addToSet` on `users.capabilities`; atomicity across the two documents is a Phase 4 design question (`NFR-R-003` is about status+history, not this pair). |
 | Session revoked (logout)                         | The row is **deleted** (`FR-092`). Replayed identifiers find nothing.                                                                                                                                                                                        |                                                                                                                                                                                         |
 | Session expires                                  | TTL index deletes it (`NFR-S-016`).                                                                                                                                                                                                                          | Idle-timeout (`§13.3`) is not implemented; `lastUsedAt` exists so the policy has its data.                                                                                              |
+| Session cap exceeded (sixth login)               | The service deletes the user's oldest active session by `createdAt` before creating the new one (`OQ-025`, resolved).                                                                                                                                        | `lastUsedAt` is never the eviction basis.                                                                                                                                               |
 | User data removal                                | No deletion requirements exist in the MVP (`FR-213` is Future; `OQ-013` is open). Nothing here cascades deletes.                                                                                                                                             | `OQ-013` (self-service deletion/export before public launch) is **deliberately not decided by the schema**.                                                                             |
 | Company settings change                          | Only affects _future_ invitations (each invitation snapshots `expiresAt` at creation). Nothing retroactive.                                                                                                                                                  |                                                                                                                                                                                         |
 
@@ -533,13 +545,14 @@ These are decisions the requirements deliberately leave open; the schema was
 designed to stay valid under any answer. None are fabricated -- each is an
 existing open question in `docs/product-requirements.md`.
 
-Three items that previously appeared here were resolved by product decision
+Four items that previously appeared here were resolved by product decision
 after this list was written (recorded in `docs/product-requirements.md`
 §13.1): re-application after a terminal status is **permitted**; the job
-status set is fixed as `DRAFT`/`PUBLISHED`/`CLOSED` (no `PAUSED`); and the
-employment-type set is fixed as `FULL_TIME`/`PART_TIME`/`CONTRACT`/`INTERNSHIP`.
-The Phase 3 schema needed no change for any of them -- each was already
-supported as designed.
+status set is fixed as `DRAFT`/`PUBLISHED`/`CLOSED` (no `PAUSED`); the
+employment-type set is fixed as `FULL_TIME`/`PART_TIME`/`CONTRACT`/`INTERNSHIP`;
+and the session policy is **at most 5 active sessions per account, the oldest
+by `createdAt` evicted on a sixth login** (`OQ-025`). The Phase 3 schema needed
+no change for any of them -- each was already supported as designed.
 
 1. **Invitation numeric bounds** (expiry and pending-limit min/max) and
    **résumé size cap** (`OQ-007`) -- Phase 1 validation decisions; the schema
@@ -549,17 +562,14 @@ supported as designed.
    application. If product wants a full profile snapshot, that is a second
    embedded subdocument (or a reference to a versioned profile) -- a schema
    addition, not a rework. Flagged for the developer.
-3. **Session concurrency** (`OQ-025`): the schema supports any of the four
-   behaviours (N sessions, revoke-on-login, device list). A "session list"
-   UI would need nothing new; "revoke all on login" is a query on `userId`.
-4. **Array-size caps** on `experience`/`education`/`skills`: none are invented
+3. **Array-size caps** on `experience`/`education`/`skills`: none are invented
    (no requirement bounds them). If unbounded growth becomes real, add explicit
    caps -- the same reasoning as the history's 6-entry cap.
-5. **Production index management**: `autoIndex` is currently the Mongoose
+4. **Production index management**: `autoIndex` is currently the Mongoose
    default (indexes build on connect). The deployment phase should set
    `autoIndex: false` in production and manage indexes deliberately
    (`NFR-D`-adjacent operational concern).
-6. **V1 growth**: job search text index / Atlas Search (`FR-101`), and moving
+5. **V1 growth**: job search text index / Atlas Search (`FR-101`), and moving
    the status enums into `@hireflow/contracts` when the Application API first
    puts them on the wire.
 
