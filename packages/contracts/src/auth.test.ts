@@ -17,7 +17,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  CSRF_TOKEN_HEADER,
+  csrfTokenResponseSchema,
   loginRequestSchema,
+  meResponseSchema,
   registerRequestSchema,
   registerResponseSchema,
   userResponseSchema,
@@ -157,5 +160,68 @@ describe('registerResponseSchema', () => {
 
     expect(parsed.data).not.toHaveProperty('passwordHash');
     expect(Object.keys(parsed.data)).toEqual(['id', 'email', 'name', 'capabilities']);
+  });
+});
+
+describe('meResponseSchema', () => {
+  it('accepts the same safe user shape the login endpoint returns', () => {
+    const result = meResponseSchema.safeParse({
+      success: true,
+      data: {
+        id: '507f1f77bcf86cd799439011',
+        email: 'ada@example.com',
+        name: 'Ada Lovelace',
+        capabilities: ['CANDIDATE'],
+      },
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a response that omits the identity fields', () => {
+    const result = meResponseSchema.safeParse({ success: true, data: { email: 'ada@example.com' } });
+    expect(result.success).toBe(false);
+  });
+});
+
+describe('CSRF token contract', () => {
+  it('defines the header the frontend must send on state-changing requests', () => {
+    expect(CSRF_TOKEN_HEADER).toBe('x-csrf-token');
+  });
+
+  it('accepts a 64-hex synchronizer token in the success envelope', () => {
+    const result = csrfTokenResponseSchema.safeParse({
+      success: true,
+      data: { token: 'a'.repeat(64) },
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.success && result.data.data.token).toBe('a'.repeat(64));
+  });
+
+  it('rejects a token that is not a 64-hex value', () => {
+    // The token format is part of the wire contract: the server generates it,
+    // so a malformed value indicates drift between the two sides.
+    const result = csrfTokenResponseSchema.safeParse({
+      success: true,
+      data: { token: 'not-a-real-token' },
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('strips a smuggled session identifier from the parsed response', () => {
+    // NFR-S-003: the session identifier must never appear in a response body.
+    // Like `passwordHash` above, an extra key is stripped during parsing (Zod
+    // drops unknown keys), so a server bug that smuggled the identifier in
+    // would never survive to the caller. The API tests pin the serialised body
+    // on top of this.
+    const parsed = csrfTokenResponseSchema.parse({
+      success: true,
+      data: { token: 'a'.repeat(64), sessionId: 'b'.repeat(64) },
+    });
+
+    expect(parsed.data).not.toHaveProperty('sessionId');
+    expect(Object.keys(parsed.data)).toEqual(['token']);
   });
 });

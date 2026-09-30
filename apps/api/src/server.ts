@@ -19,6 +19,8 @@ import { loadEnv } from './config/env.js';
 import './models/index.js';
 import { createAuthService } from './services/auth.service.js';
 import { SERVICE_NAME } from './services/health.service.js';
+import { createSessionService } from './services/session.service.js';
+import { createSessionStore } from './services/sessionStore.js';
 import { createUserStore } from './services/userStore.js';
 import { drainServer } from './shutdown.js';
 
@@ -103,7 +105,10 @@ async function main(): Promise<void> {
 
   // 3. Only now accept traffic.
   const auth = createAuthService(createUserStore());
-  const app = createApp({ env, getDatabaseStatus, auth });
+  // Sessions live in MongoDB (shared store, `DC-009`): every API instance
+  // resolves them, and no per-process memory is involved.
+  const sessions = createSessionService(createSessionStore());
+  const app = createApp({ env, getDatabaseStatus, auth, sessions });
 
   const server = app.listen(env.PORT, () => {
     console.log(

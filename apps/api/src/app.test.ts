@@ -18,6 +18,7 @@ import { describe, expect, it } from 'vitest';
 import { createApp } from './app.js';
 import { REQUEST_ID_HEADER } from './middleware/requestId.js';
 import { createFakeAuthService } from './testing/fakeAuth.js';
+import { createFakeSessionService } from './testing/fakeSessionStore.js';
 import { parseOrThrow } from './testing/parseOrThrow.js';
 import type { AppDependencies } from './types/dependencies.js';
 
@@ -37,6 +38,9 @@ function buildApp(database: 'connected' | 'disconnected' = 'connected') {
     env: TEST_ENV,
     getDatabaseStatus: () => database,
     auth: createFakeAuthService(),
+    // No auth/session route is exercised in this file; an in-memory session
+    // service keeps the app buildable without MongoDB.
+    sessions: createFakeSessionService(),
   } satisfies AppDependencies);
 }
 
@@ -51,6 +55,7 @@ function buildAppThatFails(nodeEnv: AppDependencies['env']['NODE_ENV']) {
       throw new Error('connection pool exhausted at 10.0.0.5:27017');
     },
     auth: createFakeAuthService(),
+    sessions: createFakeSessionService(),
   } satisfies AppDependencies);
 }
 
@@ -266,6 +271,7 @@ describe('hardening', () => {
       env: { ...TEST_ENV, NODE_ENV: 'production' },
       getDatabaseStatus: () => 'connected',
       auth: createFakeAuthService(),
+      sessions: createFakeSessionService(),
     } satisfies AppDependencies);
 
     const response = await request(app).get('/api/health');

@@ -70,12 +70,15 @@ export interface NewUserInput {
 export interface UserStore {
   insertAccount(input: NewUserInput): Promise<UserAccount>;
   findByEmail(email: string): Promise<UserAccount | null>;
+  findById(id: string): Promise<UserAccount | null>;
 }
 
 /** The operations the HTTP layer may invoke. */
 export interface AuthService {
   registerUser(input: RegisterRequest): Promise<UserResponse>;
   verifyLogin(input: LoginRequest): Promise<UserResponse>;
+  /** Resolve a user by id to its safe shape, or null when the account is gone. */
+  getUserById(id: string): Promise<UserResponse | null>;
 }
 
 /**
@@ -176,6 +179,14 @@ export function createAuthService(store: UserStore): AuthService {
       }
 
       return toSafeUser(account);
+    },
+
+    async getUserById(id: string): Promise<UserResponse | null> {
+      // Looked up by the authentication middleware after a session resolves:
+      // a valid session that points at a deleted account is an orphan and is
+      // revoked rather than authenticated (see `middleware/authenticate.ts`).
+      const account = await store.findById(id);
+      return account === null ? null : toSafeUser(account);
     },
   };
 }

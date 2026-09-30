@@ -15,6 +15,21 @@
  * delivered only via the `HttpOnly` session cookie (`FR-090`) and is never
  * logged (`NFR-S-003`).
  *
+ * ## The CSRF token is deliberately *not* hashed
+ *
+ * `csrfToken` is the synchronizer-token value (`NFR-S-018`): a separate random
+ * value the server issues (via `GET /api/auth/csrf`), stored here, and expected
+ * in the `X-CSRF-Token` header of every state-changing request. Unlike the
+ * session identifier it is stored raw, and that asymmetry is intentional and
+ * safe: a CSRF token is **not** an authenticator. Alone it grants nothing -- it
+ * is only accepted together with the `HttpOnly` session cookie, and the cookie
+ * identifier is stored hashed, so a database dump cannot yield a usable
+ * cookie. Storing it raw (rather than hashed) is what lets the issuance
+ * endpoint be idempotent: it returns the same token for the session's whole
+ * life instead of rotating it and breaking a second browser tab. It is deleted
+ * with the session on logout or expiry (`NFR-S-016`). The token never carries
+ * the session identifier or any identity claim.
+ *
  * ## No identity claims live here
  *
  * The session only points *at* a user. Identity, capabilities and company
@@ -52,6 +67,8 @@ export interface SessionDoc {
   userId: Types.ObjectId;
   expiresAt: Date;
   lastUsedAt: Date;
+  /** Raw synchronizer CSRF token for this session (`NFR-S-018`). See header. */
+  csrfToken: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -70,6 +87,16 @@ const sessionSchema = new Schema<SessionDoc>(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     expiresAt: { type: Date, required: true },
     lastUsedAt: { type: Date, required: true },
+    // The synchronizer CSRF token, stored raw by design (see the module
+    // comment): it is not an authenticator, and hashing it would make the
+    // idempotent `GET /api/auth/csrf` issuance impossible.
+    csrfToken: {
+      type: String,
+      required: true,
+      minlength: 64,
+      maxlength: 64,
+      match: /^[a-f0-9]{64}$/,
+    },
   },
   {
     timestamps: true,

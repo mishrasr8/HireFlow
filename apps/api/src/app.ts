@@ -76,13 +76,19 @@ export function createApp(deps: AppDependencies): Express {
       origin: deps.env.CORS_ORIGINS,
       credentials: true,
 
-      // GET (health) and POST (auth registration/login). Listing methods
+      // GET (health) and POST (auth registration/login/logout). Listing methods
       // explicitly is a real control -- it limits what a hostile page can even
       // attempt cross-origin -- and it grows as routes are added.
       methods: ['GET', 'POST'],
 
-      // Phase 1 accepts no custom headers from the client.
-      allowedHeaders: ['Content-Type'],
+      // `x-csrf-token` is required by the synchronizer-token CSRF defence
+      // (`NFR-S-018`): the web app sends the token in this header on every
+      // state-changing request, so the browser must be allowed to carry it in a
+      // cross-origin call. Listing it here also means the CORS spec *requires*
+      // a preflight for cross-origin POSTs carrying it, which the allowlist
+      // below then refuses for unlisted origins -- a second, browser-enforced
+      // layer on top of the server-side token check.
+      allowedHeaders: ['Content-Type', 'x-csrf-token'],
 
       // Let the browser read the correlation id, so a user reporting a failure
       // can quote the exact request.

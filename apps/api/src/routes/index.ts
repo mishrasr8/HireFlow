@@ -15,7 +15,16 @@ export function createApiRouter(deps: AppDependencies): Router {
   const router = Router();
 
   router.use('/health', createHealthRouter(deps.getDatabaseStatus));
-  router.use('/auth', createAuthRouter(deps.auth));
+  router.use(
+    '/auth',
+    createAuthRouter({
+      auth: deps.auth,
+      sessions: deps.sessions,
+      // The cookie carries `Secure` only when TLS is actually in front of the
+      // API (production); local HTTP development cannot store a Secure cookie.
+      secureCookies: deps.env.NODE_ENV === 'production',
+    }),
+  );
 
   return router;
 }

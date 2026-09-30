@@ -363,6 +363,7 @@ describe('Session schema', () => {
   it('accepts a valid session', async () => {
     const session = new Session({
       tokenHash: 'b'.repeat(64),
+      csrfToken: 'a'.repeat(64),
       userId: new mongoose.Types.ObjectId(),
       expiresAt: new Date(Date.now() + 3_600_000),
       lastUsedAt: new Date(),
@@ -373,6 +374,7 @@ describe('Session schema', () => {
   it('rejects a missing expiry and a raw (non-hashed) session identifier', async () => {
     const noExpiry = new Session({
       tokenHash: 'c'.repeat(64),
+      csrfToken: 'a'.repeat(64),
       userId: new mongoose.Types.ObjectId(),
       lastUsedAt: new Date(),
     });
@@ -380,11 +382,25 @@ describe('Session schema', () => {
 
     const raw = new Session({
       tokenHash: 'opaque-session-id',
+      csrfToken: 'a'.repeat(64),
       userId: new mongoose.Types.ObjectId(),
       expiresAt: new Date(),
       lastUsedAt: new Date(),
     });
     await expect(validationErrorsOf(raw)).rejects.toMatchObject({ name: 'ValidationError' });
+  });
+
+  it('rejects a CSRF token that is not a 64-hex value', async () => {
+    // Same shape guard as `tokenHash`: the synchronizer token (`NFR-S-018`)
+    // has a fixed random format, so a stray non-hex value is a bug, not data.
+    const rawCsrf = new Session({
+      tokenHash: 'b'.repeat(64),
+      csrfToken: 'my-csrf-token',
+      userId: new mongoose.Types.ObjectId(),
+      expiresAt: new Date(Date.now() + 3_600_000),
+      lastUsedAt: new Date(),
+    });
+    await expect(validationErrorsOf(rawCsrf)).rejects.toMatchObject({ name: 'ValidationError' });
   });
 });
 

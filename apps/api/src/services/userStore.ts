@@ -55,5 +55,12 @@ export function createUserStore(): UserStore {
       const doc = await User.findOne({ email });
       return doc === null ? null : toAccount(doc);
     },
+
+    async findById(id: string): Promise<UserAccount | null> {
+      // Used by the authentication middleware when resolving a session's user.
+      // Mongoose casts the string to an ObjectId; an unknown id finds nothing.
+      const doc = await User.findById(id);
+      return doc === null ? null : toAccount(doc);
+    },
   };
 }

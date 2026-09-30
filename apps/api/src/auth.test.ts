@@ -20,6 +20,7 @@ import { createApp } from './app.js';
 import { ApiError } from './errors/apiError.js';
 import type { AuthService } from './services/auth.service.js';
 import { createFakeAuthService } from './testing/fakeAuth.js';
+import { createFakeSessionService } from './testing/fakeSessionStore.js';
 import { parseOrThrow } from './testing/parseOrThrow.js';
 import type { AppDependencies } from './types/dependencies.js';
 
@@ -37,6 +38,10 @@ function buildApp(auth: AuthService) {
     env: TEST_ENV,
     getDatabaseStatus: () => 'connected',
     auth,
+    // An in-memory session service: Phase 4.1 endpoint tests exercise the HTTP
+    // pipeline, not session storage; the session-specific behaviour lives in
+    // `auth.session.test.ts`.
+    sessions: createFakeSessionService(),
   } satisfies AppDependencies);
 }
 

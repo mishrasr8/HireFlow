@@ -106,3 +106,40 @@ export type RegisterResponse = z.infer<typeof registerResponseSchema>;
 export const loginResponseSchema = apiSuccessSchema(userResponseSchema);
 
 export type LoginResponse = z.infer<typeof loginResponseSchema>;
+
+/** Full successful body of `GET /api/auth/me`. */
+export const meResponseSchema = apiSuccessSchema(userResponseSchema);
+
+export type MeResponse = z.infer<typeof meResponseSchema>;
+
+/**
+ * Header carrying the synchronizer CSRF token on state-changing requests
+ * (`NFR-S-018`).
+ *
+ * The name lives in the shared contract so the web app and the API literally
+ * cannot disagree on it: the API reads it in `middleware/csrf.ts`, and the
+ * frontend will send it on every mutation.
+ */
+export const CSRF_TOKEN_HEADER = 'x-csrf-token';
+
+/**
+ * Data body of `GET /api/auth/csrf`.
+ *
+ * This is the one token that legitimately travels in a response body, and the
+ * one-sentence justification matters: a CSRF token is **not** a session
+ * secret. It cannot authenticate anything by itself -- it is only accepted
+ * together with the HttpOnly session cookie and is useless without it, so an
+ * attacker who reads it gains nothing. The session identifier itself never
+ * appears in any response body (`NFR-S-003`), and this token is deliberately
+ * unrelated to it.
+ */
+export const csrfTokenDataSchema = z.object({
+  token: z.string().regex(/^[a-f0-9]{64}$/, 'CSRF token must be a 64-hex value'),
+});
+
+export type CsrfTokenData = z.infer<typeof csrfTokenDataSchema>;
+
+/** Full successful body of `GET /api/auth/csrf`. */
+export const csrfTokenResponseSchema = apiSuccessSchema(csrfTokenDataSchema);
+
+export type CsrfTokenResponse = z.infer<typeof csrfTokenResponseSchema>;

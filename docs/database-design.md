@@ -263,18 +263,25 @@ which avoids two sources of truth (section 9). No role/permission fields:
 
 ### 4.6 `sessions`
 
-| Field                    | Type            | Constraints                                       | Notes                                                                                                                                                                 |
-| ------------------------ | --------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `_id`                    | ObjectId        |                                                   |                                                                                                                                                                       |
-| `tokenHash`              | String          | required, 64-hex, **unique index**                | Hash of the opaque session identifier (`D-011`, `FR-089`). Same rationale as the invitation token.                                                                    |
-| `userId`                 | ObjectId → User | required, index                                   | "Revoke all sessions for this user" (`FR-093`, `FR-110`).                                                                                                             |
-| `expiresAt`              | Date            | required, **TTL index** (`expireAfterSeconds: 0`) | **Absolute expiry: 7 days after creation** --- never valid past it, even if still in use (`OQ-025`). Expired records are _deleted_, not retained (`NFR-S-016`).       |
-| `lastUsedAt`             | Date            | required                                          | **Idle timeout: a session unused for 3 days is invalid** (`OQ-025`). Recorded on every resolution. Never the eviction basis: the 5-session cap evicts by `createdAt`. |
-| `createdAt`, `updatedAt` | Date            | timestamps                                        |                                                                                                                                                                       |
+| Field                    | Type            | Constraints                                       | Notes                                                                                                                                                                                                                                                                                               |
+| ------------------------ | --------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `_id`                    | ObjectId        |                                                   |                                                                                                                                                                                                                                                                                                     |
+| `tokenHash`              | String          | required, 64-hex, **unique index**                | Hash of the opaque session identifier (`D-011`, `FR-089`). Same rationale as the invitation token.                                                                                                                                                                                                  |
+| `userId`                 | ObjectId → User | required, index                                   | "Revoke all sessions for this user" (`FR-093`, `FR-110`).                                                                                                                                                                                                                                           |
+| `expiresAt`              | Date            | required, **TTL index** (`expireAfterSeconds: 0`) | **Absolute expiry: 7 days after creation** --- never valid past it, even if still in use (`OQ-025`). Expired records are _deleted_, not retained (`NFR-S-016`).                                                                                                                                     |
+| `lastUsedAt`             | Date            | required                                          | **Idle timeout: a session unused for 3 days is invalid** (`OQ-025`). Recorded on every resolution. Never the eviction basis: the 5-session cap evicts by `createdAt`.                                                                                                                               |
+| `csrfToken`              | String          | required, 64-hex                                  | Synchronizer CSRF token (`NFR-S-018`), stored **raw** by design (see the model comment): it is not an authenticator --- it is only accepted together with the HttpOnly session cookie --- and raw storage is what makes issuance idempotent for the session's whole life. Deleted with the session. |
+| `createdAt`, `updatedAt` | Date            | timestamps                                        |                                                                                                                                                                                                                                                                                                     |
 
 Deliberately absent: `revokedAt`. Logout _deletes_ the row immediately
 (`FR-092`); a field that kept dead sessions around would contradict
 `NFR-S-016`. No identity claims live in the session (`FR-091`, section 5).
+
+The `csrfToken` is the one stored session value that is deliberately **not**
+hashed. Hashing it would force rotation (and break a second tab) instead of
+idempotent issuance, and unlike the session identifier it authenticates
+nothing by itself: a database dump yields no usable cookie from it because the
+cookie's identifier is stored hashed (`tokenHash`).
 
 **Session cap (`OQ-025`, resolved).** A single account may hold at most **5
 active sessions**. When a successful login would create a sixth, the service

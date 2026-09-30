@@ -29,6 +29,7 @@ export function createFakeAuthService(overrides: Partial<AuthService> = {}): Aut
   return {
     registerUser: () => Promise.resolve({ ...FAKE_USER }),
     verifyLogin: () => Promise.resolve({ ...FAKE_USER }),
+    getUserById: () => Promise.resolve({ ...FAKE_USER }),
     ...overrides,
   };
 }

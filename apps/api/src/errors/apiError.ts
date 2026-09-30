@@ -61,6 +61,17 @@ export class ApiError extends Error {
     return new ApiError(401, ERROR_CODES.UNAUTHENTICATED, message);
   }
 
+  /**
+   * 403 when the request is understood but the actor may not perform it.
+   *
+   * Used by the CSRF middleware for a state-changing request without valid CSRF
+   * proof (`NFR-S-018`): the client is authenticated, but the request is not
+   * proven to originate from the application, so it is refused.
+   */
+  static forbidden(message: string): ApiError {
+    return new ApiError(403, ERROR_CODES.FORBIDDEN, message);
+  }
+
   /** 409 when the request conflicts with existing state, e.g. a duplicate email. */
   static conflict(message: string): ApiError {
     return new ApiError(409, ERROR_CODES.CONFLICT, message);

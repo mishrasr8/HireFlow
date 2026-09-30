@@ -79,6 +79,11 @@ function createFakeStore(seed: UserAccount[] = []): FakeStore {
         findCalls.push(email);
         return Promise.resolve(records.find((account) => account.email === email) ?? null);
       },
+
+      findById(id) {
+        findCalls.push(`id:${id}`);
+        return Promise.resolve(records.find((account) => account.id === id) ?? null);
+      },
     },
   };
 }
@@ -168,6 +173,7 @@ describe('registerUser', () => {
     const failingStore: UserStore = {
       insertAccount: () => Promise.reject(new Error('connection pool exhausted at 10.0.0.5:27017')),
       findByEmail: () => Promise.resolve(null),
+      findById: () => Promise.resolve(null),
     };
     const auth = createAuthService(failingStore);
 
@@ -290,5 +296,36 @@ describe('toSafeUser', () => {
       capabilities: ['CANDIDATE'],
     });
     expect(safe).not.toHaveProperty('passwordHash');
+  });
+});
+
+describe('getUserById', () => {
+  it('returns the safe user (never the hash) for a known id', async () => {
+    const { store } = createFakeStore([
+      {
+        id: 'the-user',
+        email: 'ada@example.com',
+        name: 'Ada Lovelace',
+        capabilities: ['CANDIDATE', 'RECRUITER'],
+        passwordHash: 'a'.repeat(64),
+      },
+    ]);
+    const auth = createAuthService(store);
+
+    const user = await auth.getUserById('the-user');
+
+    expect(user).not.toBeNull();
+    if (user !== null) {
+      expect(user.email).toBe('ada@example.com');
+      expect(user.capabilities).toEqual(['CANDIDATE', 'RECRUITER']);
+    }
+    expect(user).not.toHaveProperty('passwordHash');
+  });
+
+  it('returns null for an unknown id', async () => {
+    const { store } = createFakeStore();
+    const auth = createAuthService(store);
+
+    expect(await auth.getUserById('missing-user')).toBeNull();
   });
 });
