@@ -12,8 +12,8 @@
  * request is one indexed lookup of `tokenHash`. Storing the hash (rather than
  * the raw value) means a database dump does not yield live credentials -- the
  * same reasoning as the invitation token (`NFR-S-019`). The raw identifier is
- * delivered only via the secure mechanism designed in Phase 1 (`FR-090`) and
- * never logged (`NFR-S-003`).
+ * delivered only via the `HttpOnly` session cookie (`FR-090`) and is never
+ * logged (`NFR-S-003`).
  *
  * ## No identity claims live here
  *
@@ -26,7 +26,7 @@
  *
  *  - create: after successful authentication (`FR-094`);
  *  - resolve: lookup by `tokenHash`, `revokedAt`-free, `expiresAt` in the
- *    future (`FR-091`);
+ *    future, last used within 3 days (`FR-091`);
  *  - revoke: logout **deletes** the document immediately (`FR-092`,
  *    `FR-093`) -- deletion is the strongest form of invalidation, and a
  *    replayed identifier simply is not found;
@@ -35,12 +35,13 @@
  *    expire or are revoked, not retained -- hence no `revokedAt` field that
  *    would keep rows around).
  *
- * Absent an explicit idle-timeout policy (`§13.3` lists it as a Phase 1 design
- * task), `lastUsedAt` is recorded on every resolution so the policy, whatever
- * it turns out to be, has the data it needs without a migration. The cost --
- * one write per authenticated request -- is bounded and documented; if that
- * becomes a measured bottleneck, the write can be rate-limited or batched
- * (`NFR-SC-004`).
+ * A session is valid only while it exists, has not reached its absolute expiry
+ * of 7 days (`expiresAt`), and has been used within the last 3 days
+ * (`lastUsedAt`, the idle timeout). An idle-invalid session is rejected on
+ * resolution; the `expiresAt` TTL still deletes the record. The cost of
+ * recording `lastUsedAt` -- one write per authenticated request -- is bounded
+ * and documented; if that becomes a measured bottleneck, the write can be
+ * rate-limited or batched (`NFR-SC-004`).
  */
 import { Schema, model, type Model, type Types } from 'mongoose';
 

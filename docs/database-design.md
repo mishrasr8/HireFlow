@@ -263,14 +263,14 @@ which avoids two sources of truth (section 9). No role/permission fields:
 
 ### 4.6 `sessions`
 
-| Field                    | Type            | Constraints                                       | Notes                                                                                                                                                                   |
-| ------------------------ | --------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `_id`                    | ObjectId        |                                                   |                                                                                                                                                                         |
-| `tokenHash`              | String          | required, 64-hex, **unique index**                | Hash of the opaque session identifier (`D-011`, `FR-089`). Same rationale as the invitation token.                                                                      |
-| `userId`                 | ObjectId → User | required, index                                   | "Revoke all sessions for this user" (`FR-093`, `FR-110`).                                                                                                               |
-| `expiresAt`              | Date            | required, **TTL index** (`expireAfterSeconds: 0`) | Expired records are _deleted_, not retained (`NFR-S-016`).                                                                                                              |
-| `lastUsedAt`             | Date            | required                                          | The field an idle-timeout policy (a §13.3 design task) will read; recorded on resolution. Never the eviction basis: the 5-session cap evicts by `createdAt` (`OQ-025`). |
-| `createdAt`, `updatedAt` | Date            | timestamps                                        |                                                                                                                                                                         |
+| Field                    | Type            | Constraints                                       | Notes                                                                                                                                                                 |
+| ------------------------ | --------------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `_id`                    | ObjectId        |                                                   |                                                                                                                                                                       |
+| `tokenHash`              | String          | required, 64-hex, **unique index**                | Hash of the opaque session identifier (`D-011`, `FR-089`). Same rationale as the invitation token.                                                                    |
+| `userId`                 | ObjectId → User | required, index                                   | "Revoke all sessions for this user" (`FR-093`, `FR-110`).                                                                                                             |
+| `expiresAt`              | Date            | required, **TTL index** (`expireAfterSeconds: 0`) | **Absolute expiry: 7 days after creation** --- never valid past it, even if still in use (`OQ-025`). Expired records are _deleted_, not retained (`NFR-S-016`).       |
+| `lastUsedAt`             | Date            | required                                          | **Idle timeout: a session unused for 3 days is invalid** (`OQ-025`). Recorded on every resolution. Never the eviction basis: the 5-session cap evicts by `createdAt`. |
+| `createdAt`, `updatedAt` | Date            | timestamps                                        |                                                                                                                                                                       |
 
 Deliberately absent: `revokedAt`. Logout _deletes_ the row immediately
 (`FR-092`); a field that kept dead sessions around would contradict
@@ -280,10 +280,24 @@ Deliberately absent: `revokedAt`. Logout _deletes_ the row immediately
 active sessions**. When a successful login would create a sixth, the service
 (the Phase 4 authentication implementation) deletes the oldest active session
 for that user and then creates the new one; "oldest" means oldest by
-`createdAt`. `lastUsedAt` never determines eviction --- it exists only for a
-future idle-timeout policy and observability. No schema change is needed:
-`createdAt` is already a timestamp, and the eviction query reads the user's
-non-expired rows by `userId` (indexed), ordered by `createdAt`.
+`createdAt`, never `lastUsedAt`. No schema change is needed: `createdAt` is
+already a timestamp, and the eviction query reads the user's non-expired rows
+by `userId` (indexed), ordered by `createdAt`.
+
+**Session lifetime (`OQ-025`, resolved).** A session is valid only when all
+three hold:
+
+1. the session exists;
+2. it has not reached `expiresAt` --- **absolute expiry: 7 days after
+   creation**. The absolute limit always wins over continued activity;
+3. it has been used within the last **3 days** (`lastUsedAt`) --- the **idle
+   timeout**. A session idle for 3 days is invalid and is rejected on
+   resolution.
+
+No separate database field is added for idle expiry: `lastUsedAt` (already
+recorded on every resolution) holds the data, and the `expiresAt` TTL still
+deletes the record --- including a session that died of idleness rather than
+age.
 
 ### 4.7 `jobs`
 
@@ -527,7 +541,7 @@ the data model guarantees and what the requirements leave open.
 | Invitation expires                               | Lazy expiry in the service: on read, a `PENDING` row past `expiresAt` is persisted as `EXPIRED` + `expiredAt`. The row is kept.                                                                                                                              | TTL/sweep frequency is an operational detail; volume is tiny (invitations are rare).                                                                                                    |
 | Invitation accepted                              | The conditional PENDING update sets `ACCEPTED` + `acceptedAt`; the membership service then inserts **one** `CompanyMembership` row and **adds** the Recruiter capability (`FR-096`). The unique `userId` membership index backstops a violation of `FR-037`. | The add-capability step is a `$addToSet` on `users.capabilities`; atomicity across the two documents is a Phase 4 design question (`NFR-R-003` is about status+history, not this pair). |
 | Session revoked (logout)                         | The row is **deleted** (`FR-092`). Replayed identifiers find nothing.                                                                                                                                                                                        |                                                                                                                                                                                         |
-| Session expires                                  | TTL index deletes it (`NFR-S-016`).                                                                                                                                                                                                                          | Idle-timeout (`§13.3`) is not implemented; `lastUsedAt` exists so the policy has its data.                                                                                              |
+| Session expires                                  | TTL index deletes it (`NFR-S-016`).                                                                                                                                                                                                                          | **Absolute expiry: 7 days after creation.** In practice the 3-day idle timeout (`OQ-025`) invalidates earlier on resolution; the TTL still deletes the record.                          |
 | Session cap exceeded (sixth login)               | The service deletes the user's oldest active session by `createdAt` before creating the new one (`OQ-025`, resolved).                                                                                                                                        | `lastUsedAt` is never the eviction basis.                                                                                                                                               |
 | User data removal                                | No deletion requirements exist in the MVP (`FR-213` is Future; `OQ-013` is open). Nothing here cascades deletes.                                                                                                                                             | `OQ-013` (self-service deletion/export before public launch) is **deliberately not decided by the schema**.                                                                             |
 | Company settings change                          | Only affects _future_ invitations (each invitation snapshots `expiresAt` at creation). Nothing retroactive.                                                                                                                                                  |                                                                                                                                                                                         |
